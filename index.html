@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COMPILER v1.0 :: VINTAGE EDITION</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- ============================================ -->
+    <!-- COMPILER v1.0 - VINTAGE EDITION            -->
+    <!-- Classic Retro Style Interface              -->
+    <!-- ============================================ -->
+    <div class="container">
+        <header>
+            <h1>COMPILER</h1>
+            <div class="header-info">
+                <span class="course-tag">v1.0</span>
+            </div>
+        </header>
+
+        <main class="editor-container">
+            <div class="panel code-panel">
+                <div class="panel-header">
+                    <span class="panel-title">Source Code</span>
+                    <div class="panel-actions">
+                        <button class="btn-icon" title="Clear" id="clearBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <textarea id="codeInput" class="code-editor" placeholder="// Enter your source code here..." spellcheck="false"></textarea>
+            </div>
+
+            <div class="panel output-panel" id="outputPanel">
+                <div class="resize-handle" id="resizeHandle"></div>
+                <div class="panel-header">
+                    <div class="tabs">
+                        <button class="tab-btn active" data-tab="console">Console</button>
+                        <button class="tab-btn" data-tab="simbolos">Símbolos</button>
+                        <button class="tab-btn" data-tab="errores">Errores</button>
+                    </div>
+                    <div class="panel-actions">
+                        <button class="btn-icon" title="Exportar CSV" id="exportBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                        </button>
+                        <button class="btn-icon" title="Minimize/Maximize" id="toggleBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <polyline points="18 15 12 9 6 15"></polyline>
+                            </svg>
+                        </button>
+                        <button class="btn-icon" title="Copy" id="copyBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="tab-content active" id="console">
+                    <div id="output" class="output-content">
+                        <div class="output-placeholder">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                            </svg>
+                            <p>≡ Terminal Ready ≡</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-content" id="simbolos">
+                    <div class="table-container">
+                        <table class="compiler-table">
+                            <thead>
+                                <tr>
+                                    <th>Lexema</th>
+                                    <th>Tipo</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-simbolos">
+                                <tr>
+                                    <td colspan="2" class="empty-state">No hay símbolos</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="tab-content" id="errores">
+                    <div class="table-container">
+                        <table class="compiler-table">
+                            <thead>
+                                <tr>
+                                    <th>Token</th>
+                                    <th>Lexema</th>
+                                    <th>Renglón</th>
+                                    <th>Descripción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-errores">
+                                <tr>
+                                    <td colspan="4" class="empty-state">No hay errores</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <button id="runBtn" class="btn-run">
+
+                Run
+            </button>
+            <div class="status" id="status"></div>
+        </footer>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/compiler.js"></script>
+</body>
+</html>

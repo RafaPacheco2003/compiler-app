@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Tablas
     const tablaSimbolos = document.getElementById('tabla-simbolos');
     const tablaErrores = document.getElementById('tabla-errores');
+    const tablaTriplos = document.getElementById('tabla-triplos');
     
     // Tabs
     const tabBtns = document.querySelectorAll('.tab-btn');
@@ -157,6 +158,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
             
+            // **PASO 2b: Tabla de triplos (módulo triplos.js)**
+            const tablaTriplosDict = generarTriplos(codigo);
+            const entradasTriplos = tablaTriplosAEntradas(tablaTriplosDict);
+            tablaTriplos.innerHTML = '';
+            if (entradasTriplos.length === 0) {
+                tablaTriplos.innerHTML = '<tr><td colspan="4" class="empty-state">No se generaron triplos</td></tr>';
+            } else {
+                entradasTriplos.forEach(function(e) {
+                    const row = document.createElement('tr');
+                    [e.noLinea, e.operador, e.datoObjeto, e.datoFuente].forEach(function(val) {
+                        const td = document.createElement('td');
+                        td.textContent = val === undefined || val === null ? '' : String(val);
+                        row.appendChild(td);
+                    });
+                    tablaTriplos.appendChild(row);
+                });
+            }
+            
             // **PASO 3: Mostrar resumen en consola**
             output.innerHTML = `
                 <div class="output-line" style="color: var(--accent); font-weight: bold;">
@@ -173,6 +192,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="output-line" style="color: ${errores.length > 0 ? '#d32f2f' : 'var(--accent)'}">
                     > Errores detectados: ${errores.length}
+                </div>
+                <div class="output-line">
+                    > Triplos generados: ${entradasTriplos.length}
                 </div>
                 <div class="output-line" style="color: var(--accent); font-weight: bold;">
                     > ════════════════════════════════════════
@@ -223,6 +245,8 @@ document.addEventListener('DOMContentLoaded', function() {
             exportarTablaSimbolosCSV();
         } else if (tabActiva === 'errores') {
             exportarTablaErroresCSV();
+        } else if (tabActiva === 'triplos') {
+            exportarTablaTriplosCSV();
         } else {
             // Exportar el contenido de la consola
             const texto = output.innerText;
@@ -273,6 +297,26 @@ document.addEventListener('DOMContentLoaded', function() {
         
         descargarArchivo('tabla_errores.csv', csv);
         status.textContent = '✓ Tabla de errores exportada';
+        status.style.color = 'var(--accent)';
+    }
+    
+    function exportarTablaTriplosCSV() {
+        const filas = tablaTriplos.querySelectorAll('tr');
+        if (filas.length === 0 || filas[0].querySelector('.empty-state')) {
+            status.textContent = 'No hay triplos para exportar';
+            status.style.color = 'var(--text-secondary)';
+            return;
+        }
+        let csv = 'No. Línea,Operador,Dato Objeto,Dato Fuente\n';
+        filas.forEach(function(fila) {
+            const celdas = fila.querySelectorAll('td');
+            if (celdas.length === 4) {
+                csv += '"' + celdas[0].textContent + '","' + celdas[1].textContent + '","' +
+                    celdas[2].textContent + '","' + celdas[3].textContent + '"\n';
+            }
+        });
+        descargarArchivo('tabla_triplos.csv', csv);
+        status.textContent = '✓ Tabla de triplos exportada';
         status.style.color = 'var(--accent)';
     }
     

@@ -42,6 +42,7 @@
                         <button class="tab-btn active" data-tab="console">Console</button>
                         <button class="tab-btn" data-tab="simbolos">Símbolos</button>
                         <button class="tab-btn" data-tab="errores">Errores</button>
+                        <button class="tab-btn" data-tab="triplos">Triplos</button>
                     </div>
                     <div class="panel-actions">
                         <button class="btn-icon" title="Exportar CSV" id="exportBtn">
@@ -110,6 +111,25 @@
                         </table>
                     </div>
                 </div>
+                <div class="tab-content" id="triplos">
+                    <div class="table-container">
+                        <table class="compiler-table">
+                            <thead>
+                                <tr>
+                                    <th>No. Línea</th>
+                                    <th>Operador</th>
+                                    <th>Dato Objeto</th>
+                                    <th>Dato Fuente</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-triplos">
+                                <tr>
+                                    <td colspan="4" class="empty-state">Ejecuta Run para generar triplos</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </main>
 
@@ -124,6 +144,7 @@
 
     <script src="js/config.js"></script>
     <script src="js/utils.js"></script>
+    <script src="js/triplos.js"></script>
     <script src="js/compiler.js"></script>
 </body>
 </html>

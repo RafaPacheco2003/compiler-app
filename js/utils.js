@@ -88,6 +88,13 @@ function generarTablaSimbolos(codigo) {
         
         // Detectar declaración de función: funcion nombre ( params ) -> tipo { }
         const esFuncion = lexemas[0] === 'funcion';
+        let tipoRetornoFuncion = "";
+        if (esFuncion) {
+            const idxFlecha = lexemas.indexOf('->');
+            if (idxFlecha !== -1 && idxFlecha + 1 < lexemas.length) {
+                tipoRetornoFuncion = lexemas[idxFlecha + 1];
+            }
+        }
         
         for (let i = 0; i < lexemas.length; i++) {
             const lexema = lexemas[i];
@@ -99,7 +106,7 @@ function generarTablaSimbolos(codigo) {
                 if (ID_REGEX.test(lexemaStr)) {
                     // Si es declaración de función, marcar el identificador siguiente a 'funcion'
                     if (esFuncion && i === 1) {
-                        lexemaDict[lexemaStr] = "Función";
+                        lexemaDict[lexemaStr] = tipoRetornoFuncion ? `Función ${tipoRetornoFuncion}` : "Función";
                     } else {
                         lexemaDict[lexemaStr] = tipoDeLinea || "Indeterminado";
                     }
@@ -273,16 +280,22 @@ function generarTablaErrores(codigo, lexemaDict) {
                             
                             let incompatible = false;
                             
+                            // Extraer el tipo si es una función (ej. "Función num" -> "num")
+                            let tipoRealLexema = tipoLexema;
+                            if (typeof tipoLexema === 'string' && tipoLexema.startsWith("Función ")) {
+                                tipoRealLexema = tipoLexema.replace("Función ", "");
+                            }
+                            
                             // num solo acepta num
-                            if (tipoVarIzq === 'num' && tipoLexema !== 'num') {
+                            if (tipoVarIzq === 'num' && tipoRealLexema !== 'num') {
                                 incompatible = true;
                             } 
                             // cow acepta num y cow
-                            else if (tipoVarIzq === 'cow' && tipoLexema !== 'num' && tipoLexema !== 'cow') {
+                            else if (tipoVarIzq === 'cow' && tipoRealLexema !== 'num' && tipoRealLexema !== 'cow') {
                                 incompatible = true;
                             } 
                             // chain solo acepta chain
-                            else if (tipoVarIzq === 'chain' && tipoLexema !== 'chain') {
+                            else if (tipoVarIzq === 'chain' && tipoRealLexema !== 'chain') {
                                 incompatible = true;
                             }
                             

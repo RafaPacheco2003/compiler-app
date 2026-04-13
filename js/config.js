@@ -1,6 +1,6 @@
 // Expresión regular para los identificadores
-const ID_REGEX = /id_[A-Za-z0-9_-]+/;
-const REGEX_STRING = /"([^"]+)"/;
+const ID_REGEX = /^id_[A-Za-z0-9_-]+$/;
+const REGEX_STRING = /^"[^"]*"$/;
 
 // Tipos de datos
 // tipos = ["num", "chain", "cow"]

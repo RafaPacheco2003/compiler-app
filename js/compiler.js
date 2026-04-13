@@ -20,8 +20,29 @@ document.addEventListener('DOMContentLoaded', function() {
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
     
+    const lineNumbers = document.getElementById('lineNumbers');
+
+    // Función para actualizar los números de línea
+    function updateLineNumbers() {
+        const lines = codeInput.value.split('\n').length;
+        let numbersHtml = '';
+        for (let i = 1; i <= lines; i++) {
+            numbersHtml += `<span>${i}</span>`;
+        }
+        lineNumbers.innerHTML = numbersHtml;
+    }
+
+    // Sincronizar scroll entre textarea y números de línea
+    codeInput.addEventListener('scroll', function() {
+        lineNumbers.scrollTop = codeInput.scrollTop;
+    });
+
+    // Actualizar números al escribir
+    codeInput.addEventListener('input', updateLineNumbers);
+
     // Cargar código inicial
     codeInput.value = TEXTO_INICIAL;
+    updateLineNumbers();
     
     // Manejar cambio de tabs
     tabBtns.forEach(btn => {

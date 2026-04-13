@@ -505,13 +505,41 @@ main.editor-container {
 }
 
 /* Editor de código */
+.editor-wrapper {
+    display: flex;
+    flex: 1;
+    position: relative;
+    background: var(--bg-primary);
+    overflow: hidden;
+    min-height: 300px;
+    border-left: 3px solid var(--border);
+}
+
+.line-numbers {
+    width: 3rem;
+    background: var(--bg-tertiary);
+    border-right: 2px solid var(--border);
+    color: var(--text-secondary);
+    padding: 0.5rem 0 1rem 0;
+    text-align: right;
+    font-family: 'Courier New', 'Courier', monospace;
+    font-size: 14px;
+    line-height: 1.8;
+    user-select: none;
+    overflow-y: hidden;
+}
+
+.line-numbers span {
+    display: block;
+    padding-right: 0.5rem;
+}
+
 .code-editor {
     flex: 1;
-    padding: 0.5rem 1rem 1rem 3rem;
-    background: var(--bg-primary);
+    padding: 0.5rem 1rem 1rem 1rem;
+    background: transparent;
     color: var(--text-primary);
     border: none;
-    border-left: 3px solid var(--border);
     resize: none;
     font-family: 'Courier New', 'Courier', monospace;
     font-size: 14px;
@@ -527,22 +555,11 @@ main.editor-container {
             var(--border) 25.2px
         );
     background-attachment: local;
-    overflow-y: auto;
-    min-height: 300px;
+    overflow: auto;
+    white-space: pre;
 }
 
-/* Indicador de líneas en el editor */
-.code-editor::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 3rem;
-    background: var(--bg-tertiary);
-    border-right: 2px solid var(--border);
-    pointer-events: none;
-}
+/* Indicador de líneas en el editor (removido y reemplazado por line-numbers real) */
 
 .code-editor:focus {
     outline: none;

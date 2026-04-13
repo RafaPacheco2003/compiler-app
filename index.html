@@ -32,7 +32,12 @@
                         </button>
                     </div>
                 </div>
-                <textarea id="codeInput" class="code-editor" placeholder="// Enter your source code here..." spellcheck="false"></textarea>
+                <div class="editor-wrapper">
+                    <div class="line-numbers" id="lineNumbers">
+                        <span>1</span>
+                    </div>
+                    <textarea id="codeInput" class="code-editor" placeholder="// Enter your source code here..." spellcheck="false" wrap="off"></textarea>
+                </div>
             </div>
 
             <div class="panel output-panel" id="outputPanel">

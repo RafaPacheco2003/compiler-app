@@ -45,7 +45,7 @@ body::before {
         repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(58, 46, 42, 0.02) 2px, rgba(58, 46, 42, 0.02) 4px),
         repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(58, 46, 42, 0.02) 2px, rgba(58, 46, 42, 0.02) 4px);
     pointer-events: none;
-    opacity: 0.5;
+    opacity: 0.15;
     z-index: 0;
 }
 
@@ -68,19 +68,18 @@ body::before {
     left: 0;
     right: 0;
     bottom: 0;
-    border: 8px solid var(--text-primary);
+    border: 4px solid var(--text-primary);
     pointer-events: none;
     z-index: 999;
-    box-shadow: inset 0 0 20px rgba(58, 46, 42, 0.3);
 }
 
 .container::after {
     content: '';
     position: absolute;
-    top: 8px;
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
+    top: 6px;
+    left: 6px;
+    right: 6px;
+    bottom: 6px;
     border: 2px solid var(--accent);
     pointer-events: none;
     z-index: 999;
@@ -99,16 +98,7 @@ header {
 }
 
 header::before {
-    content: '╔═══════════════════════════════════════╗';
-    position: absolute;
-    top: -1.5rem;
-    left: 50%;
-    transform: translateX(-50%);
-    color: var(--text-primary);
-    font-size: 0.75rem;
-    letter-spacing: 0;
-    opacity: 0.5;
-    font-family: monospace;
+    display: none;
 }
 
 header::after {
@@ -217,12 +207,10 @@ main.editor-container {
     flex-direction: column;
     background: var(--bg-primary);
     overflow: hidden;
-    border: 4px solid var(--text-primary);
+    border: 3px solid var(--text-primary);
     border-radius: 0;
     margin: 0 1rem;
-    box-shadow: 
-        6px 6px 0px var(--border),
-        12px 12px 0px rgba(58, 46, 42, 0.2);
+    box-shadow: 4px 4px 0px var(--border);
     position: relative;
 }
 
@@ -547,14 +535,7 @@ main.editor-container {
     tab-size: 4;
     position: relative;
     z-index: 1;
-    background-image: 
-        repeating-linear-gradient(
-            transparent,
-            transparent 24.2px,
-            var(--border) 24.2px,
-            var(--border) 25.2px
-        );
-    background-attachment: local;
+    background-color: transparent;
     overflow: auto;
     white-space: pre;
 }
@@ -713,16 +694,7 @@ footer::before {
 }
 
 footer::after {
-    content: '╚═══════════════════════════════════════╝';
-    position: absolute;
-    bottom: -1.5rem;
-    left: 50%;
-    transform: translateX(-50%);
-    color: var(--text-primary);
-    font-size: 0.75rem;
-    letter-spacing: 0;
-    opacity: 0.5;
-    font-family: monospace;
+    display: none;
 }
 
 .btn-run {

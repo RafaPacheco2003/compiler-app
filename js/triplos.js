@@ -1,11 +1,6 @@
-/**
- * Generación de tabla de triplos.
- * Temporales: se resetean a T1 antes de cada instrucción completa,
- * así se reutilizan T1, T2, T3 y nunca se acumulan innecesariamente.
- */
 
 // ---------------------------------------------------------------------------
-// Tokenizador auxiliar (por espacios), independiente de utils.js
+// Tokenizador auxiliar 
 // ---------------------------------------------------------------------------
 function tokenizarLineaTriplo(linea) {
     const tokens = [];
@@ -72,34 +67,38 @@ function procesarCondicionLogica(evaluacion, tablaTriplos, contadorLineas, tempC
         for (let idx = 0; idx < terminos.length; idx++) {
             const termino = terminos[idx];
             if (termino.includes('and')) {
-                const r = procesarCondicionLogica(termino, tablaTriplos, contadorLineas, tempCounter, availableTemporales);
+                const r = procesarCondicionLogica(termino, tablaTriplos, contadorLineas, 1, availableTemporales);
                 contadorLineas = r.contadorLineas;
-                tempCounter = r.tempCounter;
                 const lineaFalsoTermino = r.lineaFalsoFinal;
                 if (idx < terminos.length - 1) {
+                    // FALSE de este sub-and -> evalua siguiente termino OR
                     tablaTriplos[lineaFalsoTermino]['Dato Fuente'] = contadorLineas;
                 } else {
                     lineaFalsoFinal = lineaFalsoTermino;
                 }
             } else {
-                let rTemp = nuevoTemporal(tempCounter, availableTemporales);
-                let temp = rTemp[0]; tempCounter = rTemp[1];
+                // Cada termino OR reinicia en T1
+                let temp = nuevoTemporal(1, availableTemporales)[0];
                 contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, '=', temp, termino[0], availableTemporales);
                 contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, termino[1], temp, termino[2], availableTemporales);
 
+                // Verdadero -> entra al cuerpo (se parchea despues con lineaCuerpo)
                 const lineaVerdadero = contadorLineas;
                 lineasVerdaderoOr.push(lineaVerdadero);
                 contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, 'Verdadero', '', 'Pendiente_OR', availableTemporales);
 
                 if (idx < terminos.length - 1) {
+                    // Falso -> evalua el siguiente termino (apunta al registro que sigue)
                     contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, 'Falso', '', contadorLineas + 1, availableTemporales);
                 } else {
+                    // Falso final -> sale del for (se parchea en generarTriplos)
                     lineaFalsoFinal = contadorLineas;
                     contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, 'Falso', '', 'Pendiente_FINAL', availableTemporales);
                 }
             }
         }
 
+        // Parchear todos los Verdadero con el inicio del cuerpo
         const lineaCuerpo = contadorLineas;
         for (const lineaV of lineasVerdaderoOr) {
             if (lineaV in tablaTriplos) tablaTriplos[lineaV]['Dato Fuente'] = lineaCuerpo;
@@ -125,29 +124,34 @@ function procesarCondicionLogica(evaluacion, tablaTriplos, contadorLineas, tempC
 
         for (let idx = 0; idx < terminos.length; idx++) {
             const termino = terminos[idx];
-            // Cada término de la condición usa su propio T1
+            // Cada término usa T1 propio
             let rTemp = nuevoTemporal(1, availableTemporales);
             let temp = rTemp[0];
             contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, '=', temp, termino[0], availableTemporales);
             contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, termino[1], temp, termino[2], availableTemporales);
 
             if (idx < terminos.length - 1) {
+                // TRUE: salta sobre el Falso de ESTE término para evaluar el siguiente
                 contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, 'Verdadero', '', contadorLineas + 2, availableTemporales);
+                // FALSE: todos los Falso intermedios apuntan al MISMO destino final
+                // (se parchean igual que el Falso del ultimo termino)
                 const lineaFalso = contadorLineas;
                 lineasFalsoAnd.push(lineaFalso);
                 contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, 'Falso', '', 'Pendiente_AND_F', availableTemporales);
             } else {
+                // Último término: TRUE salta sobre el Falso final al cuerpo
                 contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, 'Verdadero', '', contadorLineas + 2, availableTemporales);
                 lineaFalsoFinal = contadorLineas;
                 contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, 'Falso', '', 'Pendiente_FINAL', availableTemporales);
             }
         }
 
-        for (const lineaF of lineasFalsoAnd) {
-            tablaTriplos[lineaF]['Dato Fuente'] = lineaFalsoFinal;
-        }
+        // Con && todos los Falso (intermedios y final) deben apuntar al MISMO destino:
+        // el primer registro despues del for. NO pre-parcheamos aqui.
+        // Devolvemos todos los registros Falso para que generarTriplos los parchee juntos.
+        const todasLineasFalso = [...lineasFalsoAnd, lineaFalsoFinal];
 
-        return { contadorLineas, tempCounter, lineasVerdaderoOr: null, lineaFalsoFinal, lineaInicio };
+        return { contadorLineas, tempCounter, lineasVerdaderoOr: null, lineaFalsoFinal, lineaInicio, todasLineasFalso };
     }
 
     // Condición simple sin and/or — usa T1
@@ -285,6 +289,7 @@ function generarTriplos(codigo) {
     let forIntervalo = null;
     let forCondInit = null;
     let forCondFalsoLine = null;
+    let todasLineasFalsoFor = [];
     let functionJumps = {};
     let funcSkippedRegs = []; // acumula el registro JMP de CADA funcion declarada
     let isFuncSkipped = null;
@@ -323,11 +328,17 @@ function generarTriplos(codigo) {
                     }
                 }
                 contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, 'JMP', '', forCondInit, availableTemporales);
-                if (forCondFalsoLine !== null) tablaTriplos[forCondFalsoLine]['Dato Fuente'] = contadorLineas;
+                // Parchear TODOS los Falso (intermedios + final) con el mismo destino post-for
+                if (todasLineasFalsoFor && todasLineasFalsoFor.length > 0) {
+                    todasLineasFalsoFor.forEach(reg => { tablaTriplos[reg]['Dato Fuente'] = contadorLineas; });
+                } else if (forCondFalsoLine !== null) {
+                    tablaTriplos[forCondFalsoLine]['Dato Fuente'] = contadorLineas;
+                }
                 isInFor = false;
                 forIntervalo = null;
                 forCondInit = null;
                 forCondFalsoLine = null;
+                todasLineasFalsoFor = [];
             } else if (isFuncSkipped !== null) {
                 funcSkippedRegs.push(isFuncSkipped);
                 isFuncSkipped = null;
@@ -403,10 +414,13 @@ function generarTriplos(codigo) {
 
             // 2. Condición — cada término de condición arranca en T1
             const cond = lx.slice(s1 + 1, s2);
+            todasLineasFalsoFor = [];
             if (cond.length > 0) {
                 const rLog = procesarCondicionLogica(cond, tablaTriplos, contadorLineas, 1, availableTemporales);
                 contadorLineas = rLog.contadorLineas;
                 forCondFalsoLine = rLog.lineaFalsoFinal;
+                // Guardar TODOS los registros Falso (intermedios + final) para parchearlos juntos
+                todasLineasFalsoFor = rLog.todasLineasFalso || [rLog.lineaFalsoFinal];
             }
 
             // 3. Intervalo (pospuesto al })

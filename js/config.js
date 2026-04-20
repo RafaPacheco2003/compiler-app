@@ -51,20 +51,49 @@ const TEXTO_INICIAL =
 
     // id_mensaje = "Compilacion completa"
     // `;
-    `num id_num1 id_num2 id_num3;
-chain id_chain1 id_chain2 id_chain3;
-cow id_real1 id_real2 id_real3;
-cow id_operacion(){
-cow id_resultado1, id_resultado2, id_resultadoFinal;
-id_resultado1 = id_num1 + id_num2 * id_num3 - (id_num1 / id_num3);
-id_resultado2 = (id_real1 + id_real2)+ id_real3 - id_real2 / id_real1;
-id_resultadoFinal = id_resultado1 + id_resultado2;
-return id_resultadoFinal; 
+    //     `num id_num1 id_num2 id_num3;
+    // chain id_chain1 id_chain2 id_chain3;
+    // cow id_real1 id_real2 id_real3;
+    // cow id_operacion(){
+    // cow id_resultado1, id_resultado2, id_resultadoFinal;
+    // id_resultado1 = id_num1 + id_num2 * id_num3 - (id_num1 / id_num3);
+    // id_resultado2 = (id_real1 + id_real2)+ id_real3 - id_real2 / id_real1;
+    // id_resultadoFinal = id_resultado1 + id_resultado2;
+    // return id_resultadoFinal; 
+    // }
+    // for (num id_num4 = 1; id_num4< 10 && id_num4 != 5; id_num4 ++)
+    // {
+    // id_num1 = id_num1 + id_num4 * 2;
+    // id_real1 = (id_real1 + id_real2)/ id_real3;
+    // }
+    // cow id_real4;
+    // id_real4 = id_operacion()`;
+
+    `num id_base id_altura id_cuenta;
+cow id_precio id_descuento id_total;
+chain id_nombre id_codigo id_etiqueta;
+
+
+cow id_calcular(num id_base, cow id_precio){
+cow id_temp1, id_temp2, id_resultado;
+id_temp1 = id_base * id_precio - (id_base / id_cuenta);
+id_temp2 = (id_precio + id_descuento) * id_base - id_descuento / id_precio;
+id_resultado = id_temp1 + id_temp2;
+return id_resultado;
 }
-for (num id_num4 = 1; id_num4< 10 && id_num4 != 5; id_num4 ++)
+
+cow id_acumular(num id_cuenta, cow id_descuento){
+cow id_suma, id_parcial, id_resumen;
+id_suma = id_cuenta * id_descuento + (id_precio - id_descuento);
+
+for (num id_i = 1; id_i < 5 && id_i != 3; id_i++)
 {
-id_num1 = id_num1 + id_num4 * 2;
-id_real1 = (id_real1 + id_real2)/ id_real3;
+id_parcial = id_suma + id_i * 4;
+id_precio = (id_precio + id_descuento) / id_base;
 }
-cow id_real4;
-id_real4 = id_operacion()`;
+id_resumen = id_suma - id_parcial + id_precio * id_cuenta;
+return id_resumen;
+}
+cow id_res1, id_res2;
+id_res1 = id_calcular(id_base, id_precio);
+id_res2 = id_acumular(id_cuenta, id_descuento);`;

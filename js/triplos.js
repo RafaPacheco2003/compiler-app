@@ -1,3 +1,8 @@
+/**
+ * Generación de tabla de triplos.
+ * Temporales: se resetean a T1 antes de cada instrucción completa,
+ * así se reutilizan T1, T2, T3 y nunca se acumulan innecesariamente.
+ */
 
 // ---------------------------------------------------------------------------
 // Tokenizador auxiliar (por espacios), independiente de utils.js
@@ -281,8 +286,10 @@ function generarTriplos(codigo) {
     let forCondInit = null;
     let forCondFalsoLine = null;
     let functionJumps = {};
+    let funcSkippedRegs = []; // acumula el registro JMP de CADA funcion declarada
     let isFuncSkipped = null;
     let currentFunc = null;
+    let isInFunc = false; // true mientras estamos dentro del cuerpo de una funcion
 
     const TIPOS_V = ['num', 'cow', 'real', 'chain', 'int', 'float', 'str', 'void'];
 
@@ -322,9 +329,10 @@ function generarTriplos(codigo) {
                 forCondInit = null;
                 forCondFalsoLine = null;
             } else if (isFuncSkipped !== null) {
-                tablaTriplos[isFuncSkipped]['Dato Fuente'] = contadorLineas;
+                funcSkippedRegs.push(isFuncSkipped);
                 isFuncSkipped = null;
                 currentFunc = null;
+                isInFunc = false;
             }
             iLinea++;
             continue;
@@ -348,6 +356,7 @@ function generarTriplos(codigo) {
             }
             functionJumps[funcName] = { startBody: contadorLineas, returns: [], params, retVar: null };
             currentFunc = funcName;
+            isInFunc = true;
             iLinea++;
             continue;
         }
@@ -426,6 +435,12 @@ function generarTriplos(codigo) {
         }
 
         // ── ASIGNACIONES Y LLAMADAS A FUNCIÓN ───────────────────────────────
+        // Si estamos en codigo principal (no en cuerpo de funcion), parchear los JMPs
+        if (!isInFunc && funcSkippedRegs.length > 0) {
+            funcSkippedRegs.forEach(reg => { tablaTriplos[reg]['Dato Fuente'] = contadorLineas; });
+            funcSkippedRegs = [];
+        }
+
         if (lx.includes('=')) {
             const eqi = lx.indexOf('=');
             let lhs = lx[eqi - 1] || lx[0];

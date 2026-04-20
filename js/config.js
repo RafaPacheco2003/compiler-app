@@ -51,21 +51,20 @@ const TEXTO_INICIAL =
 
     // id_mensaje = "Compilacion completa"
     // `;
-    `num id_num1 id_num2 id_num3
-    chain id_chain1 id_chain2 id_chain3
-    real id_real1 id_real2 id_real3
-    real id_operacion(){
-    real id_resultado1, id_resultado2, id_resultadoFinal;
-    id_resultado1 = id_num1 + id_num2 * id_num3 - (id_num1 / id_num3);
-    id_resultado2 = (id_real1 + id_real2)+ id_real3 - id_real2 / id_real1;
-    id_resultadoFinal = id_resultado1 + id_resultado2;
-    return id_resultadoFinal; 
-    }
-    for (num id_num4 = 1; id_num4< 10 && id_num4 != 5; id_num4 ++)
-    {
-    id_num1 = id_num1 + id_num4 * 2;
-    id_real1 = (id_real1 + id_real2)/ id_real3;
-    }
-    Real Id_real4
-    Id_real4 = id_operacion()
-    `;
+    `num id_num1 id_num2 id_num3;
+chain id_chain1 id_chain2 id_chain3;
+cow id_real1 id_real2 id_real3;
+cow id_operacion(){
+cow id_resultado1, id_resultado2, id_resultadoFinal;
+id_resultado1 = id_num1 + id_num2 * id_num3 - (id_num1 / id_num3);
+id_resultado2 = (id_real1 + id_real2)+ id_real3 - id_real2 / id_real1;
+id_resultadoFinal = id_resultado1 + id_resultado2;
+return id_resultadoFinal; 
+}
+for (num id_num4 = 1; id_num4< 10 && id_num4 != 5; id_num4 ++)
+{
+id_num1 = id_num1 + id_num4 * 2;
+id_real1 = (id_real1 + id_real2)/ id_real3;
+}
+cow id_real4;
+id_real4 = id_operacion()`;

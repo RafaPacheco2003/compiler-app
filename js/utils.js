@@ -86,13 +86,20 @@ function generarTablaSimbolos(codigo) {
         const lexemas = tokenizarLinea(linea);
         const tipoDeLinea = lexemas.find(lex => TIPOS[lex]);
         
-        // Detectar declaración de función: funcion nombre ( params ) -> tipo { }
-        const esFuncion = lexemas[0] === 'funcion';
+        // Detectar declaración de función: funcion nombre ( params ) -> tipo { } o  tipo nombre ( ) { }
+        const esFuncionVieja = lexemas[0] === 'funcion';
+        const esFuncionNueva = lexemas.length > 2 && TIPOS[lexemas[0]] && ID_REGEX.test(lexemas[1]) && lexemas[2] === '(';
+        const esFuncion = esFuncionVieja || esFuncionNueva;
+        
         let tipoRetornoFuncion = "";
         if (esFuncion) {
-            const idxFlecha = lexemas.indexOf('->');
-            if (idxFlecha !== -1 && idxFlecha + 1 < lexemas.length) {
-                tipoRetornoFuncion = lexemas[idxFlecha + 1];
+            if (esFuncionVieja) {
+                const idxFlecha = lexemas.indexOf('->');
+                if (idxFlecha !== -1 && idxFlecha + 1 < lexemas.length) {
+                    tipoRetornoFuncion = lexemas[idxFlecha + 1];
+                }
+            } else {
+                tipoRetornoFuncion = lexemas[0];
             }
         }
         
@@ -104,7 +111,7 @@ function generarTablaSimbolos(codigo) {
             if (!(lexemaStr in lexemaDict)) {
                 // Identificadores
                 if (ID_REGEX.test(lexemaStr)) {
-                    // Si es declaración de función, marcar el identificador siguiente a 'funcion'
+                    // Si es declaración de función, marcar el identificador de la función
                     if (esFuncion && i === 1) {
                         lexemaDict[lexemaStr] = tipoRetornoFuncion ? `Función ${tipoRetornoFuncion}` : "Función";
                     } else {
@@ -200,33 +207,53 @@ function generarTablaErrores(codigo, lexemaDict) {
         const lineaDeLexemas = tokenizarLinea(linea);
         const numeroLinea = index + 1;
         
-        // PASO 1: Detectar declaraciones de funciones: funcion nombre ( params ) -> tipo { }
-        if (lineaDeLexemas.length > 0 && lineaDeLexemas[0] === 'funcion') {
-            if (lineaDeLexemas.length > 1) {
-                const nombreFuncion = lineaDeLexemas[1];
-                if (funcionesYaDeclaradas.has(nombreFuncion)) {
-                    agregarError(numeroLinea, nombreFuncion, "Duplicidad de declaración");
-                } else {
-                    funcionesYaDeclaradas.add(nombreFuncion);
-                    funcionesDeclaradas.add(nombreFuncion);
-                }
+        // PASO 1: Detectar declaraciones de funciones: funcion nombre ( params ) -> tipo { } o tipo nombre ( params ) { }
+        const esDeclFuncionVieja = lineaDeLexemas.length > 0 && lineaDeLexemas[0] === 'funcion';
+        const esDeclFuncionNueva = lineaDeLexemas.length > 2 && TIPOS[lineaDeLexemas[0]] && ID_REGEX.test(lineaDeLexemas[1]) && lineaDeLexemas[2] === '(';
+        
+        if (esDeclFuncionVieja || esDeclFuncionNueva) {
+            const nombreFuncion = lineaDeLexemas[1];
+            if (funcionesYaDeclaradas.has(nombreFuncion)) {
+                agregarError(numeroLinea, nombreFuncion, "Duplicidad de declaración");
+            } else {
+                funcionesYaDeclaradas.add(nombreFuncion);
+                funcionesDeclaradas.add(nombreFuncion);
             }
             return; // No más validaciones en líneas de declaración de función
         }
         
         // PASO 2: Detectar declaraciones de variables y duplicados
+        let esLineaDeclaracionPura = false;
         if (lineaDeLexemas.length > 0 && TIPOS[lineaDeLexemas[0]]) {
-            const ids = lineaDeLexemas.slice(1).filter(x => x !== ',' && x !== ';');
-            
-            for (const identificador of ids) {
-                if (idsYaDeclarados.has(identificador)) {
-                    agregarError(numeroLinea, identificador, "Duplicidad de declaración");
-                } else {
-                    idsYaDeclarados.add(identificador);
-                    identificadoresDeclarados.add(identificador);
+            esLineaDeclaracionPura = true;
+        }
+
+        for (let i = 0; i < lineaDeLexemas.length; i++) {
+            if (TIPOS[lineaDeLexemas[i]]) {
+                // Leer IDs hasta encontrar limitador
+                let j = i + 1;
+                while (j < lineaDeLexemas.length) {
+                    const token = lineaDeLexemas[j];
+                    if (token === '=' || token === ';' || token === '{' || token === '(' || token === ')' || 
+                        ['<','>','<=','>=','!=','==','&&','||','+','-','*','/'].includes(token)) {
+                        break;
+                    }
+                    if (ID_REGEX.test(token)) {
+                        if (idsYaDeclarados.has(token)) {
+                            agregarError(numeroLinea, token, "Duplicidad de declaración");
+                        } else {
+                            idsYaDeclarados.add(token);
+                            identificadoresDeclarados.add(token);
+                        }
+                    }
+                    j++;
                 }
             }
-            return; // No más validaciones en líneas de declaración
+        }
+        
+        // Si es una declaración sin asignación, no evaluar más
+        if (esLineaDeclaracionPura && !lineaDeLexemas.includes('=')) {
+            return; 
         }
         
         // PASO 3: Detectar llamadas a funciones
@@ -268,8 +295,8 @@ function generarTablaErrores(codigo, lexemaDict) {
                     
                     if (esIdentificador || esConstante) {
                         
-                        // Variable indefinida
-                        if (esIdentificador && !identificadoresDeclarados.has(lexema)) {
+                        // Variable indefinida (permitiendo si es una llamada a función)
+                        if (esIdentificador && !identificadoresDeclarados.has(lexema) && !funcionesDeclaradas.has(lexema)) {
                             agregarError(numeroLinea, lexema, "Variable indefinida");
                             continue;
                         }

@@ -1,8 +1,7 @@
-/**
- * Generación de tabla de triplos (port del módulo Python del usuario).
- * Usa su propio tokenizador por espacios (tokenizarLineaTriplo), independiente de utils.js.
- */
 
+// ---------------------------------------------------------------------------
+// Tokenizador auxiliar (por espacios), independiente de utils.js
+// ---------------------------------------------------------------------------
 function tokenizarLineaTriplo(linea) {
     const tokens = [];
     let i = 0;
@@ -11,7 +10,6 @@ function tokenizarLineaTriplo(linea) {
 
     while (i < linea.length) {
         const char = linea[i];
-
         if (char === '"') {
             if (enString) {
                 tokenActual += char;
@@ -19,31 +17,26 @@ function tokenizarLineaTriplo(linea) {
                 tokenActual = '';
                 enString = false;
             } else {
-                if (tokenActual) {
-                    tokens.push(tokenActual);
-                    tokenActual = '';
-                }
+                if (tokenActual) { tokens.push(tokenActual); tokenActual = ''; }
                 enString = true;
                 tokenActual += char;
             }
         } else if (enString) {
             tokenActual += char;
         } else if (char === ' ' || char === '\t') {
-            if (tokenActual) {
-                tokens.push(tokenActual);
-                tokenActual = '';
-            }
+            if (tokenActual) { tokens.push(tokenActual); tokenActual = ''; }
         } else {
             tokenActual += char;
         }
         i += 1;
     }
-    if (tokenActual) {
-        tokens.push(tokenActual);
-    }
+    if (tokenActual) tokens.push(tokenActual);
     return tokens;
 }
 
+// ---------------------------------------------------------------------------
+// Helpers de condición
+// ---------------------------------------------------------------------------
 function esEvaluacion(lineaLexemas, listaEvaluacion = ['<', '>', '<=', '>=', '==', '!=', '=']) {
     return lineaLexemas.some(op => listaEvaluacion.includes(op));
 }
@@ -52,6 +45,9 @@ function esBinario(lineaLexemas, listaBinarios = ['or', 'and']) {
     return lineaLexemas.some(op => listaBinarios.includes(op));
 }
 
+// ---------------------------------------------------------------------------
+// Procesado de condiciones lógicas (&&/|| ya normalizados a and/or)
+// ---------------------------------------------------------------------------
 function procesarCondicionLogica(evaluacion, tablaTriplos, contadorLineas, tempCounter, availableTemporales) {
     const orIndices = evaluacion.map((t, idx) => (t === 'or' ? idx : -1)).filter(idx => idx >= 0);
 
@@ -71,13 +67,7 @@ function procesarCondicionLogica(evaluacion, tablaTriplos, contadorLineas, tempC
         for (let idx = 0; idx < terminos.length; idx++) {
             const termino = terminos[idx];
             if (termino.includes('and')) {
-                const r = procesarCondicionLogica(
-                    termino,
-                    tablaTriplos,
-                    contadorLineas,
-                    tempCounter,
-                    availableTemporales
-                );
+                const r = procesarCondicionLogica(termino, tablaTriplos, contadorLineas, tempCounter, availableTemporales);
                 contadorLineas = r.contadorLineas;
                 tempCounter = r.tempCounter;
                 const lineaFalsoTermino = r.lineaFalsoFinal;
@@ -87,10 +77,8 @@ function procesarCondicionLogica(evaluacion, tablaTriplos, contadorLineas, tempC
                     lineaFalsoFinal = lineaFalsoTermino;
                 }
             } else {
-                let temp;
                 let rTemp = nuevoTemporal(tempCounter, availableTemporales);
-                temp = rTemp[0];
-                tempCounter = rTemp[1];
+                let temp = rTemp[0]; tempCounter = rTemp[1];
                 contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, '=', temp, termino[0], availableTemporales);
                 contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, termino[1], temp, termino[2], availableTemporales);
 
@@ -109,18 +97,10 @@ function procesarCondicionLogica(evaluacion, tablaTriplos, contadorLineas, tempC
 
         const lineaCuerpo = contadorLineas;
         for (const lineaV of lineasVerdaderoOr) {
-            if (lineaV in tablaTriplos) {
-                tablaTriplos[lineaV]['Dato Fuente'] = lineaCuerpo;
-            }
+            if (lineaV in tablaTriplos) tablaTriplos[lineaV]['Dato Fuente'] = lineaCuerpo;
         }
 
-        return {
-            contadorLineas,
-            tempCounter,
-            lineasVerdaderoOr,
-            lineaFalsoFinal,
-            lineaInicio
-        };
+        return { contadorLineas, tempCounter, lineasVerdaderoOr, lineaFalsoFinal, lineaInicio };
     }
 
     const andIndices = evaluacion.map((t, idx) => (t === 'and' ? idx : -1)).filter(idx => idx >= 0);
@@ -140,10 +120,9 @@ function procesarCondicionLogica(evaluacion, tablaTriplos, contadorLineas, tempC
 
         for (let idx = 0; idx < terminos.length; idx++) {
             const termino = terminos[idx];
-            let temp;
-            let rTemp = nuevoTemporal(tempCounter, availableTemporales);
-            temp = rTemp[0];
-            tempCounter = rTemp[1];
+            // Cada término de la condición usa su propio T1
+            let rTemp = nuevoTemporal(1, availableTemporales);
+            let temp = rTemp[0];
             contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, '=', temp, termino[0], availableTemporales);
             contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, termino[1], temp, termino[2], availableTemporales);
 
@@ -163,118 +142,59 @@ function procesarCondicionLogica(evaluacion, tablaTriplos, contadorLineas, tempC
             tablaTriplos[lineaF]['Dato Fuente'] = lineaFalsoFinal;
         }
 
-        return {
-            contadorLineas,
-            tempCounter,
-            lineasVerdaderoOr: null,
-            lineaFalsoFinal,
-            lineaInicio
-        };
+        return { contadorLineas, tempCounter, lineasVerdaderoOr: null, lineaFalsoFinal, lineaInicio };
     }
 
+    // Condición simple sin and/or — usa T1
     const lineaInicio = contadorLineas;
-    let temp;
-    let rTemp = nuevoTemporal(tempCounter, availableTemporales);
-    temp = rTemp[0];
-    tempCounter = rTemp[1];
+    let rTemp = nuevoTemporal(1, availableTemporales);
+    let temp = rTemp[0];
     contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, '=', temp, evaluacion[0], availableTemporales);
     contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, evaluacion[1], temp, evaluacion[2], availableTemporales);
-
     contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, 'Verdadero', '', contadorLineas + 2, availableTemporales);
     const lineaFalsoFinal = contadorLineas;
     contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, 'Falso', '', 'Pendiente_FINAL', availableTemporales);
 
-    return {
-        contadorLineas,
-        tempCounter,
-        lineasVerdaderoOr: null,
-        lineaFalsoFinal,
-        lineaInicio
-    };
+    return { contadorLineas, tempCounter, lineasVerdaderoOr: null, lineaFalsoFinal, lineaInicio };
 }
 
-function contenidoParentesis(lineaLexemas) {
-    let sublista = '';
-    for (let i = 0; i < lineaLexemas.length; i++) {
-        if (lineaLexemas[i] === '(') {
-            for (let j = i + 1; j < lineaLexemas.length; j++) {
-                if (lineaLexemas[j] === ')') {
-                    sublista = lineaLexemas.slice(i + 1, j);
-                    contenidoParentesis(sublista);
-                    break;
-                }
-            }
-        }
-    }
-    return sublista;
-}
-
-function triplo(lineaLexemas) {
-    let operadorPrincipal = '';
-    let datoObjeto = '';
-    let datoFuente = '';
-    for (let i = 0; i < lineaLexemas.length; i++) {
-        if (['+', '-', '*', '/'].includes(lineaLexemas[i]) &&
-            lineaLexemas[i - 1] !== '(' &&
-            lineaLexemas[i + 1] !== ')') {
-            operadorPrincipal = lineaLexemas[i];
-            break;
-        }
-    }
-    if (operadorPrincipal) {
-        const indiceOp = lineaLexemas.indexOf(operadorPrincipal);
-        datoObjeto = lineaLexemas[indiceOp - 1];
-        datoFuente = lineaLexemas[indiceOp + 1];
-    }
-    return [operadorPrincipal, datoObjeto, datoFuente];
-}
-
+// ---------------------------------------------------------------------------
+// Emisión de triplos
+// ---------------------------------------------------------------------------
 function emitirTriplo(tablaTriplos, contadorLineas, operador, datoObjeto, datoFuente, availableTemporales) {
     tablaTriplos[contadorLineas] = {
         operador,
         'Dato Objeto': datoObjeto,
         'Dato Fuente': datoFuente
     };
-    if (typeof datoFuente === 'string' && datoFuente.startsWith('T')) {
-        if (!availableTemporales.includes(datoFuente)) {
-            availableTemporales.push(datoFuente);
-        }
-    }
-    if (typeof datoObjeto === 'string' && datoObjeto.startsWith('T')) {
-        const ix = availableTemporales.indexOf(datoObjeto);
-        if (ix !== -1) {
-            availableTemporales.splice(ix, 1);
-        }
-    }
     return contadorLineas + 1;
 }
 
+// Retorna siempre T{tempCounter} e incrementa el contador.
+// El caller resetea tempCounter=1 antes de cada instrucción nueva.
 function nuevoTemporal(tempCounter, availableTemporales) {
-    if (availableTemporales.length > 0) {
-        return [availableTemporales.shift(), tempCounter];
-    }
-    const nombre = `T${tempCounter}`;
-    return [nombre, tempCounter + 1];
+    return ['T' + tempCounter, tempCounter + 1];
 }
 
+// ---------------------------------------------------------------------------
+// Reducción de expresiones aritméticas (respeta jerarquía * / antes que + -)
+// tempCounter empieza en 1 para cada expresión → T1, T2, T3 máximo
+// ---------------------------------------------------------------------------
 function reducirExpresionFlat(tokens, tablaTriplos, contadorLineas, tempCounter, availableTemporales) {
     tokens = tokens.slice();
 
-    if (tokens.length === 1) {
-        return [tokens[0], contadorLineas, tempCounter];
-    }
+    if (tokens.length === 1) return [tokens[0], contadorLineas, tempCounter];
 
+    // Primero: * / %
     let i = 1;
     while (i < tokens.length) {
-        if (i < tokens.length && ['*', '/', '%'].includes(tokens[i])) {
+        if (['*', '/', '%'].includes(tokens[i])) {
             const operandoIzq = tokens[i - 1];
             const operador = tokens[i];
             const operandoDer = tokens[i + 1];
 
-            let temp;
             let rTemp = nuevoTemporal(tempCounter, availableTemporales);
-            temp = rTemp[0];
-            tempCounter = rTemp[1];
+            let temp = rTemp[0]; tempCounter = rTemp[1];
 
             if (!(typeof operandoIzq === 'string' && operandoIzq.startsWith('T'))) {
                 contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, '=', temp, operandoIzq, availableTemporales);
@@ -290,32 +210,25 @@ function reducirExpresionFlat(tokens, tablaTriplos, contadorLineas, tempCounter,
         }
     }
 
-    if (tokens.length === 1) {
-        return [tokens[0], contadorLineas, tempCounter];
-    }
+    if (tokens.length === 1) return [tokens[0], contadorLineas, tempCounter];
 
+    // Luego: + - (y cualquier operador restante)
     if (typeof tokens[0] === 'string' && tokens[0].startsWith('T')) {
         const temp = tokens[0];
         i = 1;
         while (i < tokens.length) {
-            const op = tokens[i];
-            const rhs = tokens[i + 1];
-            contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, op, temp, rhs, availableTemporales);
+            contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, tokens[i], temp, tokens[i + 1], availableTemporales);
             i += 2;
         }
         return [temp, contadorLineas, tempCounter];
     }
 
-    let temp;
     let rTemp = nuevoTemporal(tempCounter, availableTemporales);
-    temp = rTemp[0];
-    tempCounter = rTemp[1];
+    let temp = rTemp[0]; tempCounter = rTemp[1];
     contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, '=', temp, tokens[0], availableTemporales);
     i = 1;
     while (i < tokens.length) {
-        const op = tokens[i];
-        const rhs = tokens[i + 1];
-        contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, op, temp, rhs, availableTemporales);
+        contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, tokens[i], temp, tokens[i + 1], availableTemporales);
         i += 2;
     }
     return [temp, contadorLineas, tempCounter];
@@ -323,129 +236,252 @@ function reducirExpresionFlat(tokens, tablaTriplos, contadorLineas, tempCounter,
 
 function procesarExpresion(tokens, tablaTriplos, contadorLineas, tempCounter, availableTemporales) {
     tokens = tokens.slice();
+
+    // Resolver paréntesis de adentro hacia afuera
     while (tokens.includes('(')) {
         const openIndices = tokens.map((t, idx) => (t === '(' ? idx : -1)).filter(idx => idx >= 0);
         const lastOpen = Math.max(...openIndices);
         let close = null;
         for (let j = lastOpen + 1; j < tokens.length; j++) {
-            if (tokens[j] === ')') {
-                close = j;
-                break;
-            }
+            if (tokens[j] === ')') { close = j; break; }
         }
-        if (close === null) {
-            break;
-        }
+        if (close === null) break;
+
         const sub = tokens.slice(lastOpen + 1, close);
         const rSub = reducirExpresionFlat(sub, tablaTriplos, contadorLineas, tempCounter, availableTemporales);
-        const resultadoSub = rSub[0];
-        contadorLineas = rSub[1];
-        tempCounter = rSub[2];
-        tokens = tokens.slice(0, lastOpen).concat([resultadoSub], tokens.slice(close + 1));
+        contadorLineas = rSub[1]; tempCounter = rSub[2];
+        tokens = tokens.slice(0, lastOpen).concat([rSub[0]], tokens.slice(close + 1));
     }
+
     const r = reducirExpresionFlat(tokens, tablaTriplos, contadorLineas, tempCounter, availableTemporales);
     return [r[0], r[1], r[2]];
 }
 
-/**
- * Normaliza operadores lógicos del estilo del proyecto (&&, ||) a and/or con espacios,
- * para que el mismo flujo que en Python reconozca las condiciones.
- */
+// ---------------------------------------------------------------------------
+// Normalización: && → and   || → or
+// ---------------------------------------------------------------------------
 function normalizarLineaParaTriplos(linea) {
-    return linea
-        .replace(/&&/g, ' and ')
-        .replace(/\|\|/g, ' or ');
+    return linea.replace(/&&/g, ' and ').replace(/\|\|/g, ' or ');
 }
 
+// ---------------------------------------------------------------------------
+// FUNCIÓN PRINCIPAL
+// ---------------------------------------------------------------------------
 function generarTriplos(codigo) {
-    const lineas = codigo.trim().split('\n');
     let contadorLineas = 1;
     const tablaTriplos = {};
-    let operacion = null;
-    let lineaInicioFor = 0;
-    let lineaFinFor = 0;
-    let tempCounter = 1;
     const availableTemporales = [];
-    let falseTripleKey = null;
 
-    for (const linea of lineas) {
-        const lineaNorm = normalizarLineaParaTriplos(linea);
-        const lineaLexemas = tokenizarLineaTriplo(lineaNorm);
+    const codigoNorm = normalizarLineaParaTriplos(codigo);
+    const lineasObj = codigoNorm.split('\n');
 
-        if (linea.trim() === '}') {
-            if (operacion) {
-                const lhs = operacion[0];
-                let rhsTokens;
-                if (operacion.includes('=')) {
-                    try {
-                        const idxEq = operacion.indexOf('=');
-                        rhsTokens = operacion.slice(idxEq + 1);
-                    } catch {
-                        rhsTokens = operacion.slice(1);
+    let iLinea = 0;
+    let isInFor = false;
+    let forIntervalo = null;
+    let forCondInit = null;
+    let forCondFalsoLine = null;
+    let functionJumps = {};
+    let isFuncSkipped = null;
+    let currentFunc = null;
+
+    const TIPOS_V = ['num', 'cow', 'real', 'chain', 'int', 'float', 'str', 'void'];
+
+    while (iLinea < lineasObj.length) {
+        let linea = lineasObj[iLinea].trim();
+        if (!linea) { iLinea++; continue; }
+
+        // Tokenizar la línea ya normalizada (viene de codigoNorm)
+        let lx = typeof tokenizarLinea === 'function'
+            ? tokenizarLinea(linea)
+            : tokenizarLineaTriplo(linea);
+
+        // ── FIN DE BLOQUE ───────────────────────────────────────────────────
+        if (linea === '}') {
+            if (isInFor) {
+                // Intervalo del for: resetear a T1
+                if (forIntervalo && forIntervalo.length > 0) {
+                    const eqIdx = forIntervalo.indexOf('=');
+                    const lhsF = eqIdx > 0 ? forIntervalo[eqIdx - 1] : forIntervalo[0];
+                    const rhsF = forIntervalo.slice(eqIdx + 1);
+
+                    if (rhsF.length === 3) {
+                        // id_num4++ => T1=id_num4 / T1+1 / id_num4=T1  (3 registros con T1)
+                        contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, '=', 'T1', rhsF[0], availableTemporales);
+                        contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, rhsF[1], 'T1', rhsF[2], availableTemporales);
+                        contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, '=', lhsF, 'T1', availableTemporales);
+                    } else {
+                        const rExp = procesarExpresion(rhsF, tablaTriplos, contadorLineas, 1, availableTemporales);
+                        contadorLineas = rExp[1];
+                        contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, '=', lhsF, rExp[0], availableTemporales);
                     }
-                } else {
-                    rhsTokens = operacion.slice(1);
                 }
-                const rExp = procesarExpresion(rhsTokens, tablaTriplos, contadorLineas, tempCounter, availableTemporales);
-                const resultado = rExp[0];
-                contadorLineas = rExp[1];
-                tempCounter = rExp[2];
-                contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, '=', lhs, resultado, availableTemporales);
-                contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, 'JMP', '', lineaInicioFor, availableTemporales);
+                contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, 'JMP', '', forCondInit, availableTemporales);
+                if (forCondFalsoLine !== null) tablaTriplos[forCondFalsoLine]['Dato Fuente'] = contadorLineas;
+                isInFor = false;
+                forIntervalo = null;
+                forCondInit = null;
+                forCondFalsoLine = null;
+            } else if (isFuncSkipped !== null) {
+                tablaTriplos[isFuncSkipped]['Dato Fuente'] = contadorLineas;
+                isFuncSkipped = null;
+                currentFunc = null;
             }
-            lineaFinFor = contadorLineas;
-            if (falseTripleKey !== null) {
-                tablaTriplos[falseTripleKey]['Dato Fuente'] = lineaFinFor;
-            }
+            iLinea++;
+            continue;
         }
 
-        if (esEvaluacion(lineaLexemas)) {
-            if (lineaLexemas[0] === 'for') {
-                for (let j = 1; j < lineaLexemas.length; j++) {
-                    if (lineaLexemas[j] === ';') {
-                        const evaluacion = lineaLexemas.slice(1, j);
-                        const rLog = procesarCondicionLogica(
-                            evaluacion,
-                            tablaTriplos,
-                            contadorLineas,
-                            tempCounter,
-                            availableTemporales
-                        );
-                        contadorLineas = rLog.contadorLineas;
-                        tempCounter = rLog.tempCounter;
-                        falseTripleKey = rLog.lineaFalsoFinal;
-                        lineaInicioFor = rLog.lineaInicio;
+        // ── DECLARACIÓN DE FUNCIÓN ──────────────────────────────────────────
+        const esFuncionVieja = lx[0] === 'funcion';
+        const esFuncionNueva = lx.length > 2 && TIPOS_V.includes(lx[0]) && lx[2] === '(';
 
-                        for (let k = j + 1; k < lineaLexemas.length; k++) {
-                            if (lineaLexemas[k] === '{') {
-                                operacion = lineaLexemas.slice(j + 1, k);
-                                break;
-                            }
-                        }
-                        break;
-                    }
-                }
-            } else if (lineaLexemas.includes('=')) {
-                const idxEq = lineaLexemas.indexOf('=');
-                const lhs = lineaLexemas[0];
-                const rhsTokens = lineaLexemas.slice(idxEq + 1);
-                const rExp = procesarExpresion(rhsTokens, tablaTriplos, contadorLineas, tempCounter, availableTemporales);
-                const resultado = rExp[0];
+        if (esFuncionVieja || esFuncionNueva) {
+            const funcName = lx[1];
+            const skipReg = contadorLineas;
+            contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, 'JMP', '', 'Pendiente_FIN_FUNC', availableTemporales);
+            isFuncSkipped = skipReg;
+
+            const params = [];
+            let pIdx = 3;
+            while (pIdx < lx.length && lx[pIdx] !== ')') {
+                if (lx[pIdx] !== ',' && !TIPOS_V.includes(lx[pIdx])) params.push(lx[pIdx]);
+                pIdx++;
+            }
+            functionJumps[funcName] = { startBody: contadorLineas, returns: [], params, retVar: null };
+            currentFunc = funcName;
+            iLinea++;
+            continue;
+        }
+
+        // ── RETURN — solo emite JMP (sin instrucción RETURN) ─────────────────
+        if (lx[0] === 'return') {
+            const endIdx = lx.indexOf(';') !== -1 ? lx.indexOf(';') : lx.length;
+            const rhs = lx.slice(1, endIdx);
+
+            if (rhs.length > 0) {
+                // Resetear temporales a T1 para esta expresión
+                const rExp = procesarExpresion(rhs, tablaTriplos, contadorLineas, 1, availableTemporales);
                 contadorLineas = rExp[1];
-                tempCounter = rExp[2];
-                contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, '=', lhs, resultado, availableTemporales);
+
+                if (currentFunc && functionJumps[currentFunc]) {
+                    functionJumps[currentFunc].retVar = rExp[0];
+                    functionJumps[currentFunc].returns.push(contadorLineas);
+                    contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, 'JMP', '', 'Pendiente_RETORNO', availableTemporales);
+                }
+            }
+            iLinea++;
+            continue;
+        }
+
+        // ── FOR ─────────────────────────────────────────────────────────────
+        if (lx[0] === 'for') {
+            isInFor = true;
+            const s1 = lx.indexOf(';');
+            const s2 = lx.indexOf(';', s1 + 1);
+
+            // 1. Valor inicial — resetear a T1
+            let assignP1 = lx.slice(2, s1);
+            if (assignP1.length > 0 && TIPOS_V.includes(assignP1[0])) assignP1 = assignP1.slice(1);
+            if (assignP1.includes('=')) {
+                const eqi = assignP1.indexOf('=');
+                const lhsF = assignP1[eqi - 1];
+                const rhsF = assignP1.slice(eqi + 1);
+                const rE = procesarExpresion(rhsF, tablaTriplos, contadorLineas, 1, availableTemporales);
+                contadorLineas = rE[1];
+                contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, '=', lhsF, rE[0], availableTemporales);
+            }
+
+            forCondInit = contadorLineas;
+
+            // 2. Condición — cada término de condición arranca en T1
+            const cond = lx.slice(s1 + 1, s2);
+            if (cond.length > 0) {
+                const rLog = procesarCondicionLogica(cond, tablaTriplos, contadorLineas, 1, availableTemporales);
+                contadorLineas = rLog.contadorLineas;
+                forCondFalsoLine = rLog.lineaFalsoFinal;
+            }
+
+            // 3. Intervalo (pospuesto al })
+            // Con utils.js corregido, ++ y -- llegan como un solo token.
+            const p3 = lx.slice(s2 + 1, lx.lastIndexOf(')'));
+            if (p3.includes('++')) {
+                const plusIdx = p3.indexOf('++');
+                const v = plusIdx > 0 ? p3[plusIdx - 1] : p3[0];
+                forIntervalo = [v, '=', v, '+', '1'];
+            } else if (p3.includes('--')) {
+                const minusIdx = p3.indexOf('--');
+                const v = minusIdx > 0 ? p3[minusIdx - 1] : p3[0];
+                forIntervalo = [v, '=', v, '-', '1'];
             } else {
-                const rExp = procesarExpresion(lineaLexemas, tablaTriplos, contadorLineas, tempCounter, availableTemporales);
-                contadorLineas = rExp[1];
-                tempCounter = rExp[2];
+                forIntervalo = p3;
             }
+
+            iLinea++;
+            continue;
         }
+
+        // ── DECLARACIONES SIN ASIGNACIÓN (ignorar) ──────────────────────────
+        if (TIPOS_V.includes(lx[0]) && !lx.includes('=')) {
+            iLinea++;
+            continue;
+        }
+
+        // ── ASIGNACIONES Y LLAMADAS A FUNCIÓN ───────────────────────────────
+        if (lx.includes('=')) {
+            const eqi = lx.indexOf('=');
+            let lhs = lx[eqi - 1] || lx[0];
+            if (TIPOS_V.includes(lx[0])) lhs = lx[1];
+
+            const endRhs = lx.indexOf(';') !== -1 ? lx.indexOf(';') : lx.length;
+            const rhs = lx.slice(eqi + 1, endRhs);
+
+            // Llamada a función: id_var = id_funcion(args)
+            const funcCallName = rhs.find(r => functionJumps[r]);
+            if (funcCallName && rhs.includes('(')) {
+                const opn = rhs.indexOf('(');
+                const cls = rhs.indexOf(')');
+                const argsT = rhs.slice(opn + 1, cls).filter(v => v !== ',');
+                const fInfo = functionJumps[funcCallName];
+
+                // Asignar argumentos a parámetros — cada arg usa T1
+                for (let a = 0; a < argsT.length; a++) {
+                    if (a < fInfo.params.length) {
+                        contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, '=', 'T1', argsT[a], availableTemporales);
+                        contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, '=', fInfo.params[a], 'T1', availableTemporales);
+                    }
+                }
+
+                contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, 'JMP', '', fInfo.startBody, availableTemporales);
+                const retornoPunto = contadorLineas;
+
+                if (fInfo.returns && fInfo.returns.length > 0) {
+                    fInfo.returns.forEach(ln => { tablaTriplos[ln]['Dato Fuente'] = retornoPunto; });
+                    fInfo.returns = [];
+                }
+
+                if (fInfo.retVar) {
+                    contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, '=', 'T1', fInfo.retVar, availableTemporales);
+                    contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, '=', lhs, 'T1', availableTemporales);
+                }
+
+                iLinea++;
+                continue;
+            }
+
+            // Asignación aritmética normal — resetear temporales a T1
+            const rE = procesarExpresion(rhs, tablaTriplos, contadorLineas, 1, availableTemporales);
+            contadorLineas = rE[1];
+            contadorLineas = emitirTriplo(tablaTriplos, contadorLineas, '=', lhs, rE[0], availableTemporales);
+        }
+
+        iLinea++;
     }
 
     return tablaTriplos;
 }
 
-/** Convierte la tabla de triplos a filas ordenadas para la UI o CSV */
+// ---------------------------------------------------------------------------
+// Convierte la tabla al formato de filas para la UI / CSV
+// ---------------------------------------------------------------------------
 function tablaTriplosAEntradas(tablaTriplos) {
     const nums = Object.keys(tablaTriplos)
         .map(k => Number(k))

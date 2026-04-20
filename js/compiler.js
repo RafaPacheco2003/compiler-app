@@ -188,7 +188,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 entradasTriplos.forEach(function(e) {
                     const row = document.createElement('tr');
-                    [e.noLinea, e.operador, e.datoObjeto, e.datoFuente].forEach(function(val) {
+                    [e.noLinea, e.datoObjeto, e.datoFuente, e.operador].forEach(function(val) {
                         const td = document.createElement('td');
                         td.textContent = val === undefined || val === null ? '' : String(val);
                         row.appendChild(td);

@@ -291,7 +291,6 @@ function generarTriplos(codigo) {
     let forCondFalsoLine = null;
     let todasLineasFalsoFor = [];
     let functionJumps = {};
-    let funcSkippedRegs = []; // acumula el registro JMP de CADA funcion declarada
     let isFuncSkipped = null;
     let currentFunc = null;
     let isInFunc = false; // true mientras estamos dentro del cuerpo de una funcion
@@ -340,7 +339,7 @@ function generarTriplos(codigo) {
                 forCondFalsoLine = null;
                 todasLineasFalsoFor = [];
             } else if (isFuncSkipped !== null) {
-                funcSkippedRegs.push(isFuncSkipped);
+                tablaTriplos[isFuncSkipped]['Dato Fuente'] = contadorLineas;
                 isFuncSkipped = null;
                 currentFunc = null;
                 isInFunc = false;
@@ -449,12 +448,6 @@ function generarTriplos(codigo) {
         }
 
         // ── ASIGNACIONES Y LLAMADAS A FUNCIÓN ───────────────────────────────
-        // Si estamos en codigo principal (no en cuerpo de funcion), parchear los JMPs
-        if (!isInFunc && funcSkippedRegs.length > 0) {
-            funcSkippedRegs.forEach(reg => { tablaTriplos[reg]['Dato Fuente'] = contadorLineas; });
-            funcSkippedRegs = [];
-        }
-
         if (lx.includes('=')) {
             const eqi = lx.indexOf('=');
             let lhs = lx[eqi - 1] || lx[0];

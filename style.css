@@ -552,6 +552,23 @@ main.editor-container {
     font-style: italic;
 }
 
+/* Optimización */
+.optimizacion-content {
+    margin: 0;
+    padding: 0.75rem;
+    height: 100%;
+    overflow: auto;
+    font-family: 'Courier New', 'Courier', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border: none;
+    box-sizing: border-box;
+}
+
 /* Output */
 .output-content {
     flex: 1;

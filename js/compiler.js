@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const tablaSimbolos = document.getElementById('tabla-simbolos');
     const tablaErrores = document.getElementById('tabla-errores');
     const tablaTriplos = document.getElementById('tabla-triplos');
+    const codigoOptimizado = document.getElementById('codigo-optimizado');
     
     // Tabs
     const tabBtns = document.querySelectorAll('.tab-btn');
@@ -181,6 +182,10 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // **PASO 2b: Tabla de triplos (módulo triplos.js)**
             const tablaTriplosDict = generarTriplos(codigo);
+
+            // **PASO 2c: Optimización CSE (módulo optimizacion.js)**
+            const codigoOpt = optimizarCodigo(codeInput.value);
+            codigoOptimizado.textContent = codigoOpt || 'No hay asignaciones optimizables';
             const entradasTriplos = tablaTriplosAEntradas(tablaTriplosDict);
             tablaTriplos.innerHTML = '';
             if (entradasTriplos.length === 0) {
@@ -216,6 +221,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="output-line">
                     > Triplos generados: ${entradasTriplos.length}
+                </div>
+                <div class="output-line">
+                    > Optimización: código procesado (ver pestaña Optimización)
                 </div>
                 <div class="output-line" style="color: var(--accent); font-weight: bold;">
                     > ════════════════════════════════════════
@@ -268,6 +276,8 @@ document.addEventListener('DOMContentLoaded', function() {
             exportarTablaErroresCSV();
         } else if (tabActiva === 'triplos') {
             exportarTablaTriplosCSV();
+        } else if (tabActiva === 'optimizacion') {
+            exportarCodigoOptimizado();
         } else {
             // Exportar el contenido de la consola
             const texto = output.innerText;
@@ -321,6 +331,18 @@ document.addEventListener('DOMContentLoaded', function() {
         status.style.color = 'var(--accent)';
     }
     
+    function exportarCodigoOptimizado() {
+        const texto = codigoOptimizado.textContent;
+        if (!texto || texto === 'Ejecuta Run para ver el código optimizado') {
+            status.textContent = 'No hay código optimizado para exportar';
+            status.style.color = 'var(--text-secondary)';
+            return;
+        }
+        descargarArchivo('codigo_optimizado.txt', texto, 'text/plain;charset=utf-8;');
+        status.textContent = '✓ Código optimizado exportado';
+        status.style.color = 'var(--accent)';
+    }
+
     function exportarTablaTriplosCSV() {
         const filas = tablaTriplos.querySelectorAll('tr');
         if (filas.length === 0 || filas[0].querySelector('.empty-state')) {
@@ -342,8 +364,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Función para descargar archivo
-    function descargarArchivo(nombreArchivo, contenido) {
-        const blob = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
+    function descargarArchivo(nombreArchivo, contenido, mimeType) {
+        const blob = new Blob([contenido], { type: mimeType || 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = nombreArchivo;
@@ -355,7 +377,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Evento del botón Copy (output)
     copyBtn.addEventListener('click', function() {
-        const text = output.innerText;
+        const tabActiva = document.querySelector('.tab-btn.active').getAttribute('data-tab');
+        let text = output.innerText;
+        if (tabActiva === 'optimizacion') {
+            text = codigoOptimizado.textContent;
+        }
         navigator.clipboard.writeText(text).then(() => {
             status.textContent = 'Copied to clipboard';
             status.style.color = 'var(--accent)';

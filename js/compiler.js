@@ -252,7 +252,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 lineasOpt.forEach((linea, index) => {
                     const originalIndex = index;
                     const originalLinea = lineasOriginales[originalIndex] || '';
-                    const esOptimizado = linea.trim() !== originalLinea.trim();
+                    
+                    // Comparar ignorando espacios en blanco para evitar falsos positivos por formateo de espacios
+                    const esOptimizado = linea.replace(/\s+/g, '') !== originalLinea.replace(/\s+/g, '');
                     
                     const div = document.createElement('div');
                     div.className = 'opt-line';
@@ -280,10 +282,27 @@ document.addEventListener('DOMContentLoaded', function() {
                         codeInput.focus();
                         codeInput.setSelectionRange(range.start, range.end);
                         
-                        // Desplazar el editor para enfocar la línea
+                        // Desplazar el editor de forma inteligente sin dejar espacios en blanco arriba
                         const lineHeight = 14 * 1.8; // line-height: 1.8, font-size: 14px en style.css (25.2px)
-                        const targetScrollTop = (lineNum - 1) * lineHeight - (codeInput.clientHeight / 2);
-                        codeInput.scrollTop = Math.max(0, targetScrollTop);
+                        const totalTextHeight = codeInput.value.split('\n').length * lineHeight;
+                        
+                        if (totalTextHeight <= codeInput.clientHeight) {
+                            // Si el código cabe completo en la pantalla del editor, mantener el scroll en 0
+                            codeInput.scrollTop = 0;
+                        } else {
+                            const lineTop = (lineNum - 1) * lineHeight;
+                            const viewHeight = codeInput.clientHeight;
+                            const currentScroll = codeInput.scrollTop;
+                            
+                            // Solo hacer scroll si la línea no es visible en la pantalla actual
+                            if (lineTop < currentScroll || lineTop > (currentScroll + viewHeight - lineHeight)) {
+                                const targetScrollTop = lineTop - (viewHeight / 2);
+                                codeInput.scrollTop = Math.max(0, targetScrollTop);
+                            }
+                        }
+                        
+                        // Sincronizar los números de línea con el scroll del editor
+                        lineNumbers.scrollTop = codeInput.scrollTop;
                     });
                     
                     codigoOptimizado.appendChild(div);

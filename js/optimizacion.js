@@ -1,329 +1,339 @@
-// ---------------------------------------------------------------------------
-// Optimización: eliminación de subexpresiones comunes (CSE)
-// ---------------------------------------------------------------------------
 
-const OPS_ARIT = ['+', '-', '*', '/', '%'];
-const ASIGNACION_RE = /^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/;
+
+const _OPS = ['+', '-', '*', '/', '%'];
+const _TIPOS = ['num', 'cow', 'chain'];
 
 /**
- * Punto de entrada: optimiza el código fuente o, si hay triplos, su forma en asignaciones.
- * @param {string} codigo
- * @returns {string}
+ * Punto de entrada principal.
+ * Recibe el código fuente completo y devuelve el código optimizado.
+ * Las líneas que no son asignaciones simples se pasan SIN modificar.
  */
 function optimizarCodigo(codigo) {
-    if (!codigo || codigo.trim() === '') {
-        return codigo;
-    }
+    if (!codigo || codigo.trim() === '') return codigo;
 
-    // Código pegado como asignaciones (a = z + 22): optimizar directo, sin triplos.
-    if (esCodigoSoloAsignaciones(codigo)) {
-        return optimizarLineasAsignacion(codigo.split('\n')).join('\n');
-    }
-
-    if (typeof generarTriplos === 'function') {
-        const tabla = generarTriplos(codigo);
-        const lineasTriplo = triplosTablaALineasAsignacion(tabla);
-        if (lineasTriplo.length > 0) {
-            return optimizarLineasAsignacion(lineasTriplo).join('\n');
-        }
-    }
-
-    return optimizarLineasAsignacion(codigo.split('\n')).join('\n');
-}
-
-function esCodigoSoloAsignaciones(codigo) {
-    const lineas = codigo.split('\n').filter(l => l.trim() !== '');
-    if (lineas.length === 0) return false;
-    return lineas.every(l => ASIGNACION_RE.test(l.trim()));
-}
-
-/**
- * Optimiza una tabla de triplos y devuelve texto (T1 = a + b, ...).
- * @param {Object} tablaTriplos
- * @returns {string}
- */
-function optimizarTriplos(tablaTriplos) {
-    const lineas = triplosTablaALineasAsignacion(tablaTriplos);
-    return optimizarLineasAsignacion(lineas).join('\n');
-}
-
-// ---------------------------------------------------------------------------
-// Triplos → líneas de asignación (solo variables finales, sin T1 duplicados)
-// ---------------------------------------------------------------------------
-function esTemporal(nombre) {
-    return /^T\d+$/.test(nombre);
-}
-
-function triplosTablaALineasAsignacion(tablaTriplos) {
-    const cadenas = extraerCadenasTriplo(tablaTriplos);
-    const exprPorNombre = {};
-    const lineas = [];
-
-    for (const { destino, partes } of cadenas) {
-        const tokens = expandirPartesTriplo(partes, exprPorNombre);
-        exprPorNombre[destino] = tokens;
-
-        if (!esTemporal(destino)) {
-            lineas.push(destino + ' = ' + tokensAExpresion(tokens));
-        }
-    }
-
-    return lineas;
-}
-
-function extraerCadenasTriplo(tablaTriplos) {
-    const nums = Object.keys(tablaTriplos)
-        .map(Number)
-        .filter(n => !Number.isNaN(n))
-        .sort((a, b) => a - b);
-
-    const cadenas = [];
-    let actual = null;
-
-    function cerrar() {
-        if (actual && actual.partes.length > 0) {
-            cadenas.push(actual);
-        }
-        actual = null;
-    }
-
-    for (const n of nums) {
-        const t = tablaTriplos[n];
-        const op = t.operador;
-        const obj = t['Dato Objeto'];
-        const src = t['Dato Fuente'];
-
-        if (op === '=' && obj && src !== undefined && src !== '') {
-            cerrar();
-            actual = { destino: String(obj), partes: [String(src)] };
-        } else if (actual && obj === actual.destino && OPS_ARIT.includes(op)) {
-            actual.partes.push(op, String(src));
-        } else if (op === '=' || OPS_ARIT.includes(op)) {
-            cerrar();
-        }
-    }
-    cerrar();
-    return cadenas;
-}
-
-/** Sustituye T1 por la expresión ya calculada (z + 22) al asignar a = T1 */
-function expandirPartesTriplo(partes, exprPorNombre) {
-    if (partes.length === 1 && exprPorNombre[partes[0]]) {
-        return exprPorNombre[partes[0]].slice();
-    }
-
-    const tokens = [];
-    for (const p of partes) {
-        if (exprPorNombre[p]) {
-            tokens.push(...exprPorNombre[p]);
-        } else {
-            tokens.push(p);
-        }
-    }
-    return tokens;
-}
-
-// ---------------------------------------------------------------------------
-// CSE sobre líneas de asignación
-// ---------------------------------------------------------------------------
-function optimizarLineasAsignacion(lineas) {
+    const lineas = codigo.split('\n');
     const resultado = [];
-    const definiciones = [];
+
+    // Registro de sub-expresiones conocidas en el scope actual
+    let registroCSE = [];
+    // Snapshot del registro antes de entrar a un bloque for/while
+    let snapshotCSE = null;
+    // Indica si estamos dentro de una función (para resetear al salir)
+    let dentroFuncion = false;
 
     for (const lineaOriginal of lineas) {
         const linea = lineaOriginal.trim();
 
+        // ── Línea vacía ──────────────────────────────────────────────────────
         if (linea === '') {
-            resultado.push('');
-            continue;
-        }
-
-        const match = linea.match(ASIGNACION_RE);
-        if (!match) {
             resultado.push(lineaOriginal);
             continue;
         }
 
-        const variable = match[1];
-        const tokensRhs = tokenizarExpresion(match[2]);
-        const tokensOpt = aplicarCSE(tokensRhs, definiciones);
-        const rhsOpt = tokensAExpresion(tokensOpt);
-
-        definiciones.push({
-            variable,
-            tokens: tokensOpt.slice(),
-            expr: rhsOpt
-        });
-
-        const optimizado = rhsOpt !== tokensAExpresion(tokensRhs);
-        if (optimizado) {
-            resultado.push(variable + ' = ' + rhsOpt);
-        } else {
+        // ── Apertura de función: resetear registro CSE ───────────────────────
+        // Detectar: tipo id_nombre( ...
+        if (esCabeceraFuncion(linea)) {
+            registroCSE = [];
+            dentroFuncion = true;
             resultado.push(lineaOriginal);
+            continue;
         }
+
+        // ── Cierre } ─────────────────────────────────────────────────────────
+        if (linea === '}') {
+            if (dentroFuncion && snapshotCSE === null) {
+                // Cierre de función
+                registroCSE = [];
+                dentroFuncion = false;
+            } else if (snapshotCSE !== null) {
+                // Cierre de bloque for/while: restaurar CSE pre-bloque
+                // pero conservar invalidaciones de variables que cambiaron dentro
+                const varsInvalidadas = new Set();
+                registroCSE.forEach(e => {
+                    if (!snapshotCSE.some(s => s.left === e.left && s.op === e.op && s.right === e.right)) {
+                        // nueva entrada añadida dentro del bloque → no restaurar
+                    }
+                });
+                // Restaurar snapshot, quitando entradas cuya varName fue invalidada dentro
+                registroCSE = snapshotCSE.filter(s => registroCSE.some(
+                    r => r.left === s.left && r.op === s.op && r.right === s.right
+                ));
+                snapshotCSE = null;
+            }
+            resultado.push(lineaOriginal);
+            continue;
+        }
+
+        // ── Declaraciones de tipo (num x y; / cow a b;) → pasar intactas ────
+        if (esDeclaracion(linea)) {
+            resultado.push(lineaOriginal);
+            continue;
+        }
+
+        // ── Apertura de bloque { (for/while) → guardar snapshot del CSE ────────
+        if (linea === '{') {
+            snapshotCSE = registroCSE.map(e => Object.assign({}, e));
+            resultado.push(lineaOriginal);
+            continue;
+        }
+
+        // ── for / while / return → pasar intactas ────────────────────────────
+        if (esEstructuraControl(linea)) {
+            resultado.push(lineaOriginal);
+            continue;
+        }
+
+        // ── Asignación simple: lhs = rhs ─────────────────────────────────────
+        const eqIdx = primerIgualAsignacion(linea);
+        if (eqIdx === -1) {
+            // No es una asignación reconocible → pasar intacta
+            resultado.push(lineaOriginal);
+            continue;
+        }
+
+        const lhs = linea.slice(0, eqIdx).trim();
+        const rhs = linea.slice(eqIdx + 1).trim();
+
+        // Quitar ';' final del rhs si existe
+        const rhsSinPunto = rhs.endsWith(';') ? rhs.slice(0, -1).trim() : rhs;
+        const puntoFinal = rhs.endsWith(';') ? ';' : '';
+
+        // 1. Invalidar sub-exprs que contengan la variable que cambia
+        invalidarPorVariable(registroCSE, lhs);
+
+        // Si el RHS es una llamada a función (contiene paréntesis con argumentos)
+        // no optimizar — pasar intacto para no perder comas ni estructura
+        if (esLlamadaFuncion(rhsSinPunto)) {
+            resultado.push(lineaOriginal);
+            continue;
+        }
+
+        // 2. Optimizar el RHS
+        const rhsOpt = optimizarRHS(rhsSinPunto, registroCSE);
+
+        // 3. Registrar sub-expresiones del RHS para usos futuros
+        registrarSubExpresiones(lhs, rhsOpt, registroCSE);
+
+        // 4. Reconstruir línea
+        resultado.push(lhs + ' = ' + rhsOpt + puntoFinal);
+        continue;
     }
 
-    return resultado;
+    return resultado.join('\n');
 }
 
-function aplicarCSE(tokens, definiciones) {
-    let actual = tokens.slice();
-    let huboCambio = true;
+// ---------------------------------------------------------------------------
+// Detección de tipos de línea
+// ---------------------------------------------------------------------------
 
-    while (huboCambio) {
-        huboCambio = false;
-        for (let d = definiciones.length - 1; d >= 0; d--) {
-            const def = definiciones[d];
-            const reemplazo = intentarReemplazar(actual, def);
-            if (reemplazo) {
-                actual = reemplazo;
-                huboCambio = true;
+function esLlamadaFuncion(rhs) {
+    // Detecta: id_nombre( ... ) o id_nombre ( ... )
+    return /^[A-Za-z_][A-Za-z0-9_]*\s*\(/.test(rhs.trim());
+}
+
+function esCabeceraFuncion(linea) {
+    // cow id_xxx( ... ) o num id_xxx( ... )
+    return _TIPOS.some(t => linea.startsWith(t + ' ') || linea.startsWith(t + '\t'))
+        && linea.includes('(')
+        && !linea.includes('=');  // no es una declaración con asignación
+}
+
+function esDeclaracion(linea) {
+    // num id_x id_y; / cow id_a, id_b; (sin paréntesis de función)
+    if (!_TIPOS.some(t => linea.startsWith(t + ' ') || linea.startsWith(t + '\t'))) return false;
+    if (linea.includes('(')) return false; // es cabecera de función
+    return true;
+}
+
+function esEstructuraControl(linea) {
+    return linea.startsWith('for ') ||
+        linea.startsWith('for(') ||
+        linea.startsWith('while ') ||
+        linea.startsWith('while(') ||
+        linea.startsWith('do ') ||
+        linea.startsWith('return') ||
+        linea === '{';
+}
+
+/**
+ * Devuelve el índice del '=' de asignación, ignorando ==, !=, <=, >=.
+ * Si no hay asignación válida devuelve -1.
+ */
+function primerIgualAsignacion(linea) {
+    for (let i = 0; i < linea.length; i++) {
+        if (linea[i] === '=') {
+            const prev = linea[i - 1];
+            const next = linea[i + 1];
+            if (prev === '!' || prev === '<' || prev === '>' || prev === '=') continue;
+            if (next === '=') continue;
+            return i;
+        }
+    }
+    return -1;
+}
+
+// ---------------------------------------------------------------------------
+// Invalidar: cuando lhs cambia de valor, eliminar sub-expresiones que lo usen
+// ---------------------------------------------------------------------------
+function invalidarPorVariable(registroCSE, variable) {
+    for (let i = registroCSE.length - 1; i >= 0; i--) {
+        const e = registroCSE[i];
+        if (e.left === variable || e.right === variable || e.varName === variable) {
+            registroCSE.splice(i, 1);
+        }
+    }
+}
+
+
+function registrarSubExpresiones(varName, rhs, registroCSE) {
+    const tokens = tokenizarExpr(rhs);
+
+    // Caso 1: exactamente A op B  (3 tokens)
+    if (tokens.length === 3 &&
+        esOperando(tokens[0]) && esOp(tokens[1]) && esOperando(tokens[2])) {
+        const left = tokens[0], op = tokens[1], right = tokens[2];
+        if (!registroCSE.some(e => e.left === left && e.op === op && e.right === right)) {
+            registroCSE.push({ varName, left, op, right });
+        }
+        return;
+    }
+
+    // Caso 2: exactamente ( A op B )  (5 tokens con paréntesis envolventes)
+    if (tokens.length === 5 &&
+        tokens[0] === '(' && tokens[4] === ')' &&
+        esOperando(tokens[1]) && esOp(tokens[2]) && esOperando(tokens[3])) {
+        const left = tokens[1], op = tokens[2], right = tokens[3];
+        if (!registroCSE.some(e => e.left === left && e.op === op && e.right === right)) {
+            registroCSE.push({ varName, left, op, right });
+        }
+        return;
+    }
+
+    // Cualquier otra expresión más compleja: NO registrar
+    // (la variable no equivale a una sola sub-expresión)
+}
+
+// ---------------------------------------------------------------------------
+// Optimizar RHS: sustituir sub-expresiones conocidas
+// ---------------------------------------------------------------------------
+function optimizarRHS(rhs, registroCSE) {
+    let tokens = tokenizarExpr(rhs);
+
+    let cambio = true;
+    while (cambio) {
+        cambio = false;
+        // Iterar de la más reciente a la más antigua
+        for (let d = registroCSE.length - 1; d >= 0; d--) {
+            const nuevo = intentarSustituir(tokens, registroCSE[d]);
+            if (nuevo) {
+                tokens = nuevo;
+                cambio = true;
                 break;
             }
         }
     }
 
-    return actual;
+    // Limpiar paréntesis redundantes: ( varName ) → varName
+    tokens = limpiarParentesisRedundantes(tokens);
+
+    return tokens.join(' ');
 }
 
-function intentarReemplazar(tokens, def) {
-    const prev = def.tokens;
-    if (prev.length === 0) return null;
+function limpiarParentesisRedundantes(tokens) {
+    const out = [];
+    let i = 0;
+    while (i < tokens.length) {
+        if (tokens[i] === '(' &&
+            i + 2 < tokens.length &&
+            esOperando(tokens[i + 1]) &&
+            tokens[i + 2] === ')') {
+            // Solo quitar si el contexto lo permite (no es necesario para precedencia)
+            const antes = out.length > 0 ? out[out.length - 1] : null;
+            const despues = i + 3 < tokens.length ? tokens[i + 3] : null;
+            // Si está entre * y algo, el paréntesis puede ser necesario para + -
+            // En nuestro caso ya fue sustituido por una variable → siempre seguro quitar
+            out.push(tokens[i + 1]);
+            i += 3;
+        } else {
+            out.push(tokens[i]);
+            i++;
+        }
+    }
+    return out;
+}
 
-    let r = intentarParentesis(tokens, prev, def.variable);
-    if (r) return r;
+function intentarSustituir(tokens, def) {
+    const { varName, left, op, right } = def;
 
-    r = intentarSubsecuenciaAditiva(tokens, prev, def.variable);
-    if (r) return r;
+    // Patrón B: ( left op right )
+    for (let i = 0; i <= tokens.length - 5; i++) {
+        if (tokens[i] === '(' &&
+            tokens[i + 1] === left &&
+            tokens[i + 2] === op &&
+            tokens[i + 3] === right &&
+            tokens[i + 4] === ')') {
+            return [
+                ...tokens.slice(0, i),
+                varName,
+                ...tokens.slice(i + 5)
+            ];
+        }
+    }
 
-    r = intentarProductoConmutativo(tokens, prev, def.variable);
-    if (r) return r;
+    // Patrón A: left op right  (sin paréntesis) — verificar contexto
+    for (let i = 0; i <= tokens.length - 3; i++) {
+        if (tokens[i] !== left) continue;
+        if (tokens[i + 1] !== op) continue;
+        if (tokens[i + 2] !== right) continue;
+
+        if (!esContextoValido(tokens, i, op)) continue;
+
+        return [
+            ...tokens.slice(0, i),
+            varName,
+            ...tokens.slice(i + 3)
+        ];
+    }
 
     return null;
 }
 
-/** Ej. 5: w * (z + 22) → w * a */
-function intentarParentesis(tokens, prev, varPrev) {
-    const envuelto = ['(', ...prev, ')'];
-    const i = indiceSubsecuencia(tokens, envuelto);
-    if (i === -1) return null;
-    return sustituirEn(tokens, i, envuelto.length, [varPrev]);
-}
-
-/**
- * Ej. 1 y 2: subexpresión aditiva contigua, sin romper precedencia de * /.
- * Válido: toda la RHS, (expr), sufijo tras '-' o sumando al final (id_n4 + subexpr).
- */
-function intentarSubsecuenciaAditiva(tokens, prev, varPrev) {
-    if (!esExpresionAditiva(prev)) return null;
-
-    const i = indiceSubsecuencia(tokens, prev);
-    if (i === -1) return null;
-    if (!esReemplazoAditivoValido(tokens, i, prev.length)) return null;
-
-    return sustituirEn(tokens, i, prev.length, [varPrev]);
-}
-
-function esExpresionAditiva(tokens) {
-    return tokens.length > 0 && tokens.every(t => OPS_ARIT.includes(t) ? (t === '+' || t === '-') : t !== '(' && t !== ')');
-}
-
-function esReemplazoAditivoValido(tokens, i, len) {
-    const j = i + len;
+// ---------------------------------------------------------------------------
+// Validar contexto de jerarquía
+// Sub-expresión aditiva (+/-) NO se sustituye si está junto a * / sin paréntesis
+// ---------------------------------------------------------------------------
+function esContextoValido(tokens, i, op) {
+    const j = i + 3;
     const antes = i > 0 ? tokens[i - 1] : null;
     const despues = j < tokens.length ? tokens[j] : null;
 
-    if (antes === '*' || antes === '/' || despues === '*' || despues === '/') {
-        return false;
+    const opEsAditivo = op === '+' || op === '-';
+
+    if (opEsAditivo) {
+        if (antes === '*' || antes === '/' || antes === '%') return false;
+        if (despues === '*' || despues === '/' || despues === '%') return false;
     }
-    if (antes === '(' && despues === ')') return true;
-    if (i === 0 && j === tokens.length) return true;
-    // X - subexpr  o  X + subexpr  al final (ej. id_n4 + id_n1 + id_n2 → id_n4 + id_t1)
-    if ((antes === '-' || antes === '+') && j === tokens.length) return true;
 
-    return false;
-}
-
-/**
- * Ej. 4: z * 22 en w * z * 22 → w * a (producto conmutativo/asociativo).
- */
-function intentarProductoConmutativo(tokens, prev, varPrev) {
-    const factoresPrev = factoresMultiplicativos(prev);
-    if (factoresPrev.length < 2) return null;
-
-    const factoresAct = factoresMultiplicativos(tokens);
-    if (factoresAct.length < factoresPrev.length) return null;
-    if (!contieneFactores(factoresAct, factoresPrev)) return null;
-
-    const restantes = quitarFactores(factoresAct, factoresPrev);
-    return construirProducto(restantes, varPrev);
-}
-
-function factoresMultiplicativos(tokens) {
-    if (tokens.some(t => t === '+' || t === '-' || t === '(' || t === ')')) {
-        return [];
-    }
-    const factores = [];
-    let buf = [];
-    for (const t of tokens) {
-        if (t === '*') {
-            if (buf.length) factores.push(buf.join(''));
-            buf = [];
-        } else if (t !== '/') {
-            buf.push(t);
-        }
-    }
-    if (buf.length) factores.push(buf.join(''));
-    return factores;
-}
-
-function contieneFactores(actuales, buscados) {
-    const copia = actuales.slice();
-    for (const f of buscados) {
-        const idx = copia.indexOf(f);
-        if (idx === -1) return false;
-        copia.splice(idx, 1);
-    }
     return true;
 }
 
-function quitarFactores(actuales, quitar) {
-    const copia = actuales.slice();
-    for (const f of quitar) {
-        const idx = copia.indexOf(f);
-        if (idx !== -1) copia.splice(idx, 1);
-    }
-    return copia;
-}
-
-function construirProducto(factores, varExtra) {
-    if (factores.length === 0) return [varExtra];
-    const out = [factores[0]];
-    for (let i = 1; i < factores.length; i++) {
-        out.push('*', factores[i]);
-    }
-    out.push('*', varExtra);
-    return out;
-}
-
 // ---------------------------------------------------------------------------
-// Tokenización
+// Helpers
 // ---------------------------------------------------------------------------
-function tokenizarExpresion(expr) {
+function tokenizarExpr(expr) {
     const tokens = [];
     let i = 0;
     const s = expr.trim();
 
     while (i < s.length) {
-        if (s[i] === ' ' || s[i] === '\t') {
-            i++;
-            continue;
-        }
+        if (s[i] === ' ' || s[i] === '\t') { i++; continue; }
+
         if ('()+-*/%'.includes(s[i])) {
             tokens.push(s[i]);
             i++;
             continue;
         }
+
         let j = i;
         while (j < s.length && /[A-Za-z0-9_.]/.test(s[j])) j++;
         if (j > i) {
@@ -336,24 +346,10 @@ function tokenizarExpresion(expr) {
     return tokens;
 }
 
-function tokensAExpresion(tokens) {
-  return tokens.join(' ');
+function esOp(t) {
+    return _OPS.includes(t);
 }
 
-function indiceSubsecuencia(arr, sub) {
-    for (let i = 0; i <= arr.length - sub.length; i++) {
-        let ok = true;
-        for (let k = 0; k < sub.length; k++) {
-            if (arr[i + k] !== sub[k]) {
-                ok = false;
-                break;
-            }
-        }
-        if (ok) return i;
-    }
-    return -1;
-}
-
-function sustituirEn(arr, inicio, longitud, reemplazo) {
-    return arr.slice(0, inicio).concat(reemplazo, arr.slice(inicio + longitud));
+function esOperando(t) {
+    return t !== undefined && !esOp(t) && t !== '(' && t !== ')';
 }

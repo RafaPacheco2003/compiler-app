@@ -565,9 +565,43 @@ main.editor-container {
     word-break: break-word;
     background: var(--bg-primary);
     color: var(--text-primary);
-    border: none;
-    box-sizing: border-box;
 }
+
+/* Líneas individuales en optimización */
+.opt-line {
+    padding: 0.15rem 0.5rem;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all 0.15s ease;
+    font-family: 'Courier New', 'Courier', monospace;
+    font-size: 13px;
+    white-space: pre; /* Keep whitespace formatting */
+}
+
+.opt-line:hover {
+    background-color: var(--bg-hover);
+}
+
+.opt-line.optimized {
+    background-color: rgba(107, 142, 78, 0.08); /* 8% opacity of --success */
+    border-left: 3px solid var(--success);
+}
+
+.opt-line.active-line {
+    background-color: rgba(182, 115, 82, 0.18) !important;
+    border-left: 4px solid var(--accent) !important;
+    font-weight: bold;
+}
+
+.line-numbers span.active-line {
+    background-color: var(--accent);
+    color: var(--bg-primary);
+    font-weight: bold;
+    border-left: 3px solid var(--text-primary);
+    padding-right: 0.25rem;
+    transition: all 0.15s ease;
+}
+
 
 /* Output */
 .output-content {

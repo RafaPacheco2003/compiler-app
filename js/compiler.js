@@ -185,7 +185,54 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // **PASO 2c: Optimización CSE (módulo optimizacion.js)**
             const codigoOpt = optimizarCodigo(codeInput.value);
-            codigoOptimizado.textContent = codigoOpt || 'No hay asignaciones optimizables';
+            
+            if (!codigoOpt || codigoOpt.trim() === '') {
+                codigoOptimizado.innerHTML = '<div class="opt-line empty">No hay asignaciones optimizables</div>';
+            } else {
+                codigoOptimizado.innerHTML = '';
+                const lineasOriginales = codeInput.value.split('\n');
+                const lineasOpt = codigoOpt.split('\n');
+                
+                lineasOpt.forEach((linea, index) => {
+                    const originalIndex = index;
+                    const originalLinea = lineasOriginales[originalIndex] || '';
+                    const esOptimizado = linea.trim() !== originalLinea.trim();
+                    
+                    const div = document.createElement('div');
+                    div.className = 'opt-line';
+                    if (esOptimizado) {
+                        div.className += ' optimized';
+                        div.title = 'Línea optimizada';
+                    }
+                    div.dataset.line = originalIndex + 1;
+                    
+                    // Si la línea está vacía, usar un espacio simple para mantener altura y permitir click/selección
+                    div.textContent = linea === '' ? ' ' : linea;
+                    
+                    // Evento click para seleccionar y resaltar
+                    div.addEventListener('click', function() {
+                        const lineNum = parseInt(this.dataset.line);
+                        
+                        // Resaltar la línea en el panel de optimización
+                        highlightOptimizedLine(this);
+                        
+                        // Resaltar la línea en el editor
+                        highlightLineNumber(lineNum);
+                        
+                        // Seleccionar la línea en el editor
+                        const range = getCharacterRangeOfLine(codeInput.value, lineNum);
+                        codeInput.focus();
+                        codeInput.setSelectionRange(range.start, range.end);
+                        
+                        // Desplazar el editor para enfocar la línea
+                        const lineHeight = 14 * 1.8; // line-height: 1.8, font-size: 14px en style.css (25.2px)
+                        const targetScrollTop = (lineNum - 1) * lineHeight - (codeInput.clientHeight / 2);
+                        codeInput.scrollTop = Math.max(0, targetScrollTop);
+                    });
+                    
+                    codigoOptimizado.appendChild(div);
+                });
+            }
             const entradasTriplos = tablaTriplosAEntradas(tablaTriplosDict);
             tablaTriplos.innerHTML = '';
             if (entradasTriplos.length === 0) {
@@ -332,8 +379,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function exportarCodigoOptimizado() {
-        const texto = codigoOptimizado.textContent;
-        if (!texto || texto === 'Ejecuta Run para ver el código optimizado') {
+        const divs = codigoOptimizado.querySelectorAll('.opt-line');
+        let texto = '';
+        if (divs.length > 0) {
+            texto = Array.from(divs).map(d => d.textContent).join('\n');
+        } else {
+            texto = codigoOptimizado.textContent;
+        }
+        if (!texto || texto === 'Ejecuta Run para ver el código optimizado' || texto === 'No hay asignaciones optimizables') {
             status.textContent = 'No hay código optimizado para exportar';
             status.style.color = 'var(--text-secondary)';
             return;
@@ -380,7 +433,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const tabActiva = document.querySelector('.tab-btn.active').getAttribute('data-tab');
         let text = output.innerText;
         if (tabActiva === 'optimizacion') {
-            text = codigoOptimizado.textContent;
+            const divs = codigoOptimizado.querySelectorAll('.opt-line');
+            if (divs.length > 0) {
+                text = Array.from(divs).map(d => d.textContent).join('\n');
+            } else {
+                text = codigoOptimizado.textContent;
+            }
         }
         navigator.clipboard.writeText(text).then(() => {
             status.textContent = 'Copied to clipboard';
@@ -390,4 +448,34 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 2000);
         });
     });
+
+    // Helpers para seleccionar y resaltar líneas
+    function getCharacterRangeOfLine(text, lineNumber) {
+        const lines = text.split('\n');
+        let start = 0;
+        for (let i = 0; i < lineNumber - 1; i++) {
+            start += lines[i].length + 1; // +1 por el carácter \n
+        }
+        const end = start + lines[lineNumber - 1].length;
+        return { start, end };
+    }
+
+    function highlightOptimizedLine(clickedDiv) {
+        const divs = codigoOptimizado.querySelectorAll('.opt-line');
+        divs.forEach(div => {
+            div.classList.remove('active-line');
+        });
+        clickedDiv.classList.add('active-line');
+    }
+
+    function highlightLineNumber(lineNum) {
+        const spans = lineNumbers.querySelectorAll('span');
+        spans.forEach((span, index) => {
+            if (index === lineNum - 1) {
+                span.classList.add('active-line');
+            } else {
+                span.classList.remove('active-line');
+            }
+        });
+    }
 });

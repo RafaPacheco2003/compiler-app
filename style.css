@@ -234,6 +234,23 @@ main.editor-container {
     grid-template-columns: 1fr;
 }
 
+/* El resize-handle no debe ocupar la fila 1fr (evita el hueco blanco arriba del contenido) */
+.output-panel > .resize-handle {
+    grid-row: 1 / -1;
+    grid-column: 1;
+}
+
+.output-panel > .panel-header {
+    grid-row: 1;
+    grid-column: 1;
+}
+
+.output-panel > .output-content-wrapper {
+    grid-row: 2;
+    grid-column: 1;
+    min-height: 0;
+}
+
 .output-panel.minimized {
     transition: width 0.3s ease;
 }

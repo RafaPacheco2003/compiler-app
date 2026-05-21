@@ -62,10 +62,20 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Cargar estado guardado del panel
     const savedHeight = localStorage.getItem('consolePanelHeight');
+    const savedWidth = localStorage.getItem('consolePanelWidth');
     const savedMinimized = localStorage.getItem('consolePanelMinimized') === 'true';
     
-    if (savedHeight) {
-        outputPanel.style.height = savedHeight + 'px';
+    const isHorizontal = window.innerWidth > 600;
+    if (isHorizontal) {
+        if (savedWidth) {
+            outputPanel.style.width = savedWidth + 'px';
+            outputPanel.style.height = '';
+        }
+    } else {
+        if (savedHeight) {
+            outputPanel.style.height = savedHeight + 'px';
+            outputPanel.style.width = '';
+        }
     }
     
     if (savedMinimized) {
@@ -74,26 +84,53 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Resize functionality
     let isResizing = false;
+    let startX = 0;
     let startY = 0;
+    let startWidth = 0;
     let startHeight = 0;
     
     resizeHandle.addEventListener('mousedown', function(e) {
         isResizing = true;
-        startY = e.clientY;
-        startHeight = outputPanel.offsetHeight;
-        document.body.style.cursor = 'ns-resize';
+        const isHorizontalLayout = window.innerWidth > 600;
+        
+        if (isHorizontalLayout) {
+            startX = e.clientX;
+            startWidth = outputPanel.offsetWidth;
+            document.body.style.cursor = 'ew-resize';
+        } else {
+            startY = e.clientY;
+            startHeight = outputPanel.offsetHeight;
+            document.body.style.cursor = 'ns-resize';
+        }
         e.preventDefault();
     });
     
     document.addEventListener('mousemove', function(e) {
         if (!isResizing) return;
         
-        const delta = startY - e.clientY;
-        const newHeight = startHeight + delta;
+        const isHorizontalLayout = window.innerWidth > 600;
         
-        if (newHeight >= 100 && newHeight <= 600) {
-            outputPanel.style.height = newHeight + 'px';
-            outputPanel.classList.remove('minimized');
+        if (isHorizontalLayout) {
+            const delta = startX - e.clientX;
+            const newWidth = startWidth + delta;
+            const maxWidth = window.innerWidth * 0.85;
+            
+            if (newWidth >= 200 && newWidth <= maxWidth) {
+                outputPanel.style.width = newWidth + 'px';
+                outputPanel.style.height = ''; // Clear height constraint
+                outputPanel.classList.remove('minimized');
+                localStorage.setItem('consolePanelWidth', newWidth);
+            }
+        } else {
+            const delta = startY - e.clientY;
+            const newHeight = startHeight + delta;
+            
+            if (newHeight >= 100 && newHeight <= 600) {
+                outputPanel.style.height = newHeight + 'px';
+                outputPanel.style.width = ''; // Clear width constraint
+                outputPanel.classList.remove('minimized');
+                localStorage.setItem('consolePanelHeight', newHeight);
+            }
         }
     });
     
@@ -101,22 +138,42 @@ document.addEventListener('DOMContentLoaded', function() {
         if (isResizing) {
             isResizing = false;
             document.body.style.cursor = '';
-            localStorage.setItem('consolePanelHeight', outputPanel.offsetHeight);
         }
     });
+    
+    // Helper para actualizar icono de minimizar/maximizar
+    function updateToggleIcon(isMinimized) {
+        const svg = toggleBtn.querySelector('svg polyline');
+        const isHorizontalLayout = window.innerWidth > 600;
+        
+        if (isHorizontalLayout) {
+            if (isMinimized) {
+                // Flecha a la izquierda para expandir
+                svg.setAttribute('points', '15 18 9 12 15 6');
+            } else {
+                // Flecha a la derecha para colapsar
+                svg.setAttribute('points', '9 18 15 12 9 6');
+            }
+        } else {
+            if (isMinimized) {
+                // Flecha abajo para expandir
+                svg.setAttribute('points', '6 9 12 15 18 9');
+            } else {
+                // Flecha arriba para colapsar
+                svg.setAttribute('points', '18 15 12 9 6 15');
+            }
+        }
+    }
+
+    // Inicializar icono correcto al cargar
+    updateToggleIcon(savedMinimized);
     
     // Toggle minimize/maximize
     toggleBtn.addEventListener('click', function() {
         outputPanel.classList.toggle('minimized');
         const isMinimized = outputPanel.classList.contains('minimized');
         localStorage.setItem('consolePanelMinimized', isMinimized);
-        
-        const svg = toggleBtn.querySelector('svg polyline');
-        if (isMinimized) {
-            svg.setAttribute('points', '6 9 12 15 18 9');
-        } else {
-            svg.setAttribute('points', '18 15 12 9 6 15');
-        }
+        updateToggleIcon(isMinimized);
     });
 
     // Evento del botón Run - COMPILAR
@@ -133,8 +190,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (outputPanel.classList.contains('minimized')) {
             outputPanel.classList.remove('minimized');
             localStorage.setItem('consolePanelMinimized', 'false');
-            const svg = toggleBtn.querySelector('svg polyline');
-            svg.setAttribute('points', '18 15 12 9 6 15');
+            updateToggleIcon(false);
         }
         
         // Limpiar console

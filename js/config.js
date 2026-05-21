@@ -69,34 +69,63 @@ const TEXTO_INICIAL =
     // cow id_real4;
     // id_real4 = id_operacion()`;
 
-    `num id_base id_altura id_cuenta;
-    cow id_precio id_descuento id_total;
-    chain id_nombre id_codigo id_etiqueta;
 
-
+    `num id_base id_cuenta id_limite;
+    cow id_precio id_descuento id_factor;
+    chain id_nombre id_clave id_etiqueta;
+   
     cow id_calcular(num id_base, cow id_precio){
-    cow id_temp1, id_temp2, id_resultado;
-    id_temp1 = id_base * id_precio - (id_base / id_cuenta);
-    id_temp2 = (id_precio + id_descuento) * id_base - id_descuento / id_precio;
-    id_resultado = id_temp1 + id_temp2;
+    cow id_mul, id_sum, id_resultado;
+    id_mul = id_base * id_precio;
+    id_sum = id_precio + id_descuento;
+    id_resultado = id_sum * id_base * id_precio - id_base / id_cuenta;
     return id_resultado;
     }
 
     cow id_acumular(num id_cuenta, cow id_descuento){
-    cow id_suma, id_parcial, id_resumen;
-    id_suma = id_cuenta * id_descuento + (id_precio - id_descuento);
-
+    cow id_prod, id_parcial, id_resumen;
+    id_prod = id_cuenta * id_descuento;
     for (num id_i = 1; id_i < 5 && id_i != 3; id_i++)
     {
-    id_parcial = id_suma + id_i * 4;
+    id_parcial = id_prod + id_i * 4;
     id_precio = (id_precio + id_descuento) / id_base;
     }
-    id_resumen = id_suma - id_parcial + id_precio * id_cuenta;
+    id_resumen = id_cuenta * id_descuento + id_parcial - id_precio;
     return id_resumen;
     }
+
     cow id_res1, id_res2;
     id_res1 = id_calcular(id_base, id_precio);
     id_res2 = id_acumular(id_cuenta, id_descuento);`;
+
+// `num id_base id_altura id_cuenta;
+// cow id_precio id_descuento id_total;
+// chain id_nombre id_codigo id_etiqueta;
+
+
+// cow id_calcular(num id_base, cow id_precio){
+// cow id_temp1, id_temp2, id_resultado;
+// id_temp1 = id_base * id_precio - (id_base / id_cuenta);
+// id_temp2 = (id_precio + id_descuento) * id_base - id_descuento / id_precio;
+// id_resultado = id_temp1 + id_temp2;
+// return id_resultado;
+// }
+
+// cow id_acumular(num id_cuenta, cow id_descuento){
+// cow id_suma, id_parcial, id_resumen;
+// id_suma = id_cuenta * id_descuento + (id_precio - id_descuento);
+
+// for (num id_i = 1; id_i < 5 && id_i != 3; id_i++)
+// {
+// id_parcial = id_suma + id_i * 4;
+// id_precio = (id_precio + id_descuento) / id_base;
+// }
+// id_resumen = id_suma - id_parcial + id_precio * id_cuenta;
+// return id_resumen;
+// }
+// cow id_res1, id_res2;
+// id_res1 = id_calcular(id_base, id_precio);
+// id_res2 = id_acumular(id_cuenta, id_descuento);`;
 
 // Ejemplos para probar optimización (pegar en editor → Run → pestaña Optimización)
 const EJEMPLOS_OPTIMIZACION = {

@@ -266,6 +266,10 @@ main.editor-container {
     }
 }
 
+.output-panel.minimized .tab-content {
+    display: none !important;
+}
+
 .output-panel.minimized .output-content,
 .output-panel.minimized .table-container,
 .output-panel.minimized .optimizacion-content {
@@ -393,11 +397,13 @@ main.editor-container {
 /* Tab Content */
 .tab-content {
     display: none;
-    height: calc(100% - 60px);
+    flex: 1;
+    min-height: 0;
 }
 
 .tab-content.active {
-    display: block;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Tablas del compilador */

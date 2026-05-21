@@ -397,13 +397,12 @@ main.editor-container {
 /* Tab Content */
 .tab-content {
     display: none;
-    flex: 1;
-    min-height: 0;
+    height: calc(100% - 50px);
+    overflow: hidden;
 }
 
 .tab-content.active {
-    display: flex;
-    flex-direction: column;
+    display: block;
 }
 
 /* Tablas del compilador */
@@ -643,7 +642,7 @@ main.editor-container {
 
 /* Output */
 .output-content {
-    flex: 1;
+    height: 100%;
     padding: 0.75rem 0.75rem 0.75rem 2.5rem;
     overflow-y: auto;
     font-family: 'Courier New', 'Courier', monospace;

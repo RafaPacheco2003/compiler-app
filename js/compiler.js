@@ -299,10 +299,10 @@ document.addEventListener('DOMContentLoaded', function () {
             // Llenar tabla visual (pestaña Ensamblador)
             const totalInstr = llenarTablaEnsamblador(textoASM);
 
-            // ── PASO 4: DESCARGAR ARCHIVO .ASM AUTOMÁTICAMENTE ────────────────
-            if (textoASM && textoASM.trim() !== '') {
-                descargarASM(textoASM);
-            }
+            // ── PASO 4: DESCARGAR ARCHIVO .ASM AUTOMÁTICAMENTE (DESACTIVADO A PETICIÓN DE USUARIO) ────────────────
+            // if (textoASM && textoASM.trim() !== '') {
+            //     descargarASM(textoASM);
+            // }
 
             // ── PASO 5: Consola ───────────────────────────────────────────────
             output.innerHTML = `
@@ -328,7 +328,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     > Instrucciones ensamblador: ${totalInstr}
                 </div>
                 <div class="output-line" style="color:var(--accent)">
-                    > ✓ codigo_ensamblador.csv descargado
+                    > ✓ codigo_ensamblador.csv generado (listo para exportar)
                 </div>
                 <div class="output-line" style="color:var(--accent);font-weight:bold;">
                     > ════════════════════════════════════════
@@ -342,8 +342,8 @@ document.addEventListener('DOMContentLoaded', function () {
             `;
 
             status.textContent = errores.length === 0
-                ? '✓ Compiled successfully — .csv descargado'
-                : `✗ ${errores.length} error(s) — .csv descargado de todas formas`;
+                ? '✓ Compiled successfully — .csv generado'
+                : `✗ ${errores.length} error(s) — .csv generado de todas formas`;
             status.style.color = errores.length === 0 ? 'var(--accent)' : '#d32f2f';
 
         } catch (err) {

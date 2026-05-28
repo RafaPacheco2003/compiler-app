@@ -1,208 +1,230 @@
 document.addEventListener('DOMContentLoaded', function () {
-    const runBtn = document.getElementById('runBtn');
-    const clearBtn = document.getElementById('clearBtn');
-    const copyBtn = document.getElementById('copyBtn');
-    const exportBtn = document.getElementById('exportBtn');
-    const toggleBtn = document.getElementById('toggleBtn');
-    const codeInput = document.getElementById('codeInput');
-    const output = document.getElementById('output');
-    const status = document.getElementById('status');
+    const runBtn      = document.getElementById('runBtn');
+    const clearBtn    = document.getElementById('clearBtn');
+    const copyBtn     = document.getElementById('copyBtn');
+    const exportBtn   = document.getElementById('exportBtn');
+    const toggleBtn   = document.getElementById('toggleBtn');
+    const codeInput   = document.getElementById('codeInput');
+    const output      = document.getElementById('output');
+    const status      = document.getElementById('status');
     const outputPanel = document.getElementById('outputPanel');
     const resizeHandle = document.getElementById('resizeHandle');
 
     // Tablas
-    const tablaSimbolos = document.getElementById('tabla-simbolos');
-    const tablaErrores = document.getElementById('tabla-errores');
-    const tablaTriplos = document.getElementById('tabla-triplos');
+    const tablaSimbolos    = document.getElementById('tabla-simbolos');
+    const tablaErrores     = document.getElementById('tabla-errores');
+    const tablaTriplos     = document.getElementById('tabla-triplos');
     const codigoOptimizado = document.getElementById('codigo-optimizado');
+    const tablaEnsamblador = document.getElementById('tabla-ensamblador');
 
     // Tabs
-    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabBtns     = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
-
     const lineNumbers = document.getElementById('lineNumbers');
 
+    // Guarda el último texto .asm generado para poder re-descargarlo con el botón Export
+    let _ultimoASM = '';
+
+    // ── Números de línea ─────────────────────────────────────────────────────
     function updateLineNumbers() {
         const lines = codeInput.value.split('\n').length;
-        let numbersHtml = '';
-        for (let i = 1; i <= lines; i++) {
-            numbersHtml += `<span>${i}</span>`;
-        }
-        lineNumbers.innerHTML = numbersHtml;
+        let html = '';
+        for (let i = 1; i <= lines; i++) html += `<span>${i}</span>`;
+        lineNumbers.innerHTML = html;
     }
 
-    codeInput.addEventListener('scroll', function () {
-        lineNumbers.scrollTop = codeInput.scrollTop;
-    });
-
-    codeInput.addEventListener('input', updateLineNumbers);
-
+    codeInput.addEventListener('scroll', () => { lineNumbers.scrollTop = codeInput.scrollTop; });
+    codeInput.addEventListener('input',  updateLineNumbers);
     codeInput.value = TEXTO_INICIAL;
     updateLineNumbers();
 
+    // ── Tabs ─────────────────────────────────────────────────────────────────
     tabBtns.forEach(btn => {
         btn.addEventListener('click', function () {
-            const tabName = this.getAttribute('data-tab');
-            tabBtns.forEach(b => b.classList.remove('active'));
+            const name = this.getAttribute('data-tab');
+            tabBtns.forEach(b    => b.classList.remove('active'));
             tabContents.forEach(c => c.classList.remove('active'));
             this.classList.add('active');
-            document.getElementById(tabName).classList.add('active');
+            document.getElementById(name).classList.add('active');
         });
     });
 
-    const savedHeight = localStorage.getItem('consolePanelHeight');
-    const savedWidth = localStorage.getItem('consolePanelWidth');
+    // ── Panel resize ─────────────────────────────────────────────────────────
+    const savedWidth     = localStorage.getItem('consolePanelWidth');
+    const savedHeight    = localStorage.getItem('consolePanelHeight');
     const savedMinimized = localStorage.getItem('consolePanelMinimized') === 'true';
 
-    const isHorizontal = window.innerWidth > 600;
-    if (isHorizontal) {
-        if (savedWidth) {
-            outputPanel.style.width = savedWidth + 'px';
-            outputPanel.style.height = '';
-        }
+    if (window.innerWidth > 600) {
+        if (savedWidth)  { outputPanel.style.width = savedWidth + 'px'; outputPanel.style.height = ''; }
     } else {
-        if (savedHeight) {
-            outputPanel.style.height = savedHeight + 'px';
-            outputPanel.style.width = '';
-        }
+        if (savedHeight) { outputPanel.style.height = savedHeight + 'px'; outputPanel.style.width = ''; }
     }
+    if (savedMinimized) outputPanel.classList.add('minimized');
 
-    if (savedMinimized) {
-        outputPanel.classList.add('minimized');
-    }
+    let isResizing = false, startX = 0, startY = 0, startWidth = 0, startHeight = 0;
 
-    let isResizing = false;
-    let startX = 0;
-    let startY = 0;
-    let startWidth = 0;
-    let startHeight = 0;
-
-    resizeHandle.addEventListener('mousedown', function (e) {
+    resizeHandle.addEventListener('mousedown', e => {
         isResizing = true;
-        const isHorizontalLayout = window.innerWidth > 600;
-        if (isHorizontalLayout) {
-            startX = e.clientX;
-            startWidth = outputPanel.offsetWidth;
+        if (window.innerWidth > 600) {
+            startX = e.clientX; startWidth = outputPanel.offsetWidth;
             document.body.style.cursor = 'ew-resize';
         } else {
-            startY = e.clientY;
-            startHeight = outputPanel.offsetHeight;
+            startY = e.clientY; startHeight = outputPanel.offsetHeight;
             document.body.style.cursor = 'ns-resize';
         }
         e.preventDefault();
     });
 
-    document.addEventListener('mousemove', function (e) {
+    document.addEventListener('mousemove', e => {
         if (!isResizing) return;
-        const isHorizontalLayout = window.innerWidth > 600;
-        if (isHorizontalLayout) {
-            const delta = startX - e.clientX;
-            const newWidth = startWidth + delta;
-            const maxWidth = window.innerWidth * 0.85;
-            if (newWidth >= 200 && newWidth <= maxWidth) {
-                outputPanel.style.width = newWidth + 'px';
-                outputPanel.style.height = '';
+        if (window.innerWidth > 600) {
+            const nw = startWidth + (startX - e.clientX);
+            if (nw >= 200 && nw <= window.innerWidth * 0.85) {
+                outputPanel.style.width = nw + 'px'; outputPanel.style.height = '';
                 outputPanel.classList.remove('minimized');
-                localStorage.setItem('consolePanelWidth', newWidth);
+                localStorage.setItem('consolePanelWidth', nw);
             }
         } else {
-            const delta = startY - e.clientY;
-            const newHeight = startHeight + delta;
-            if (newHeight >= 100 && newHeight <= 600) {
-                outputPanel.style.height = newHeight + 'px';
-                outputPanel.style.width = '';
+            const nh = startHeight + (startY - e.clientY);
+            if (nh >= 100 && nh <= 600) {
+                outputPanel.style.height = nh + 'px'; outputPanel.style.width = '';
                 outputPanel.classList.remove('minimized');
-                localStorage.setItem('consolePanelHeight', newHeight);
+                localStorage.setItem('consolePanelHeight', nh);
             }
         }
     });
 
-    document.addEventListener('mouseup', function () {
-        if (isResizing) {
-            isResizing = false;
-            document.body.style.cursor = '';
-        }
+    document.addEventListener('mouseup', () => {
+        if (isResizing) { isResizing = false; document.body.style.cursor = ''; }
     });
 
-    function updateToggleIcon(isMinimized) {
-        const svg = toggleBtn.querySelector('svg polyline');
-        const isHorizontalLayout = window.innerWidth > 600;
-        if (isHorizontalLayout) {
-            svg.setAttribute('points', isMinimized ? '15 18 9 12 15 6' : '9 18 15 12 9 6');
-        } else {
-            svg.setAttribute('points', isMinimized ? '6 9 12 15 18 9' : '18 15 12 9 6 15');
-        }
+    function updateToggleIcon(min) {
+        const pts = toggleBtn.querySelector('svg polyline');
+        if (window.innerWidth > 600)
+            pts.setAttribute('points', min ? '15 18 9 12 15 6' : '9 18 15 12 9 6');
+        else
+            pts.setAttribute('points', min ? '6 9 12 15 18 9'  : '18 15 12 9 6 15');
     }
-
     updateToggleIcon(savedMinimized);
 
-    toggleBtn.addEventListener('click', function () {
+    toggleBtn.addEventListener('click', () => {
         outputPanel.classList.toggle('minimized');
-        const isMinimized = outputPanel.classList.contains('minimized');
-        localStorage.setItem('consolePanelMinimized', isMinimized);
-        updateToggleIcon(isMinimized);
+        const m = outputPanel.classList.contains('minimized');
+        localStorage.setItem('consolePanelMinimized', m);
+        updateToggleIcon(m);
     });
 
-    // ── Helper: llenar tabla de símbolos ──────────────────────────────────────
-    function llenarTablaSimbolos(lexemaDict) {
+    // ── Helpers: llenar tablas ────────────────────────────────────────────────
+    function llenarTablaSimbolos(dict) {
         tablaSimbolos.innerHTML = '';
-        const simbolos = Object.entries(lexemaDict);
+        const simbolos = Object.entries(dict);
         if (simbolos.length === 0) {
             tablaSimbolos.innerHTML = '<tr><td colspan="2" class="empty-state">No hay símbolos</td></tr>';
         } else {
-            simbolos.forEach(([lexema, tipo]) => {
+            simbolos.forEach(([lex, tipo]) => {
                 const row = document.createElement('tr');
-                row.innerHTML = `<td>${lexema}</td><td>${tipo === 'Indeterminado' ? '' : tipo}</td>`;
+                row.innerHTML = `<td>${lex}</td><td>${tipo === 'Indeterminado' ? '' : tipo}</td>`;
                 tablaSimbolos.appendChild(row);
             });
         }
         return simbolos;
     }
 
-    // ── Helper: llenar tabla de errores ───────────────────────────────────────
     function llenarTablaErrores(errores) {
         tablaErrores.innerHTML = '';
         if (errores.length === 0) {
             tablaErrores.innerHTML = '<tr><td colspan="4" class="empty-state">✓ No hay errores</td></tr>';
         } else {
-            errores.forEach(error => {
+            errores.forEach(err => {
                 const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${error.token}</td>
-                    <td>${error.lexema}</td>
-                    <td>${error.linea}</td>
-                    <td>${error.descripcion}</td>
-                `;
+                row.innerHTML = `<td>${err.token}</td><td>${err.lexema}</td><td>${err.linea}</td><td>${err.descripcion}</td>`;
                 tablaErrores.appendChild(row);
             });
         }
     }
 
-    // ── Helper: llenar tabla de triplos ───────────────────────────────────────
-    function llenarTablaTriplos(codigoFuente) {
-        const dict = generarTriplos(codigoFuente);
-        const entradas = tablaTriplosAEntradas(dict);
+    // Devuelve { dict, total } — necesitamos el dict para pasarlo al ensamblador
+    function llenarTablaTriplos(codigo) {
+        const dict    = generarTriplos(codigo);
+        const filas   = tablaTriplosAEntradas(dict);
         tablaTriplos.innerHTML = '';
-        if (entradas.length === 0) {
+        if (filas.length === 0) {
             tablaTriplos.innerHTML = '<tr><td colspan="4" class="empty-state">No se generaron triplos</td></tr>';
         } else {
-            entradas.forEach(function (e) {
+            filas.forEach(f => {
                 const row = document.createElement('tr');
-                [e.noLinea, e.datoObjeto, e.datoFuente, e.operador].forEach(function (val) {
+                [f.noLinea, f.datoObjeto, f.datoFuente, f.operador].forEach(v => {
                     const td = document.createElement('td');
-                    td.textContent = val === undefined || val === null ? '' : String(val);
+                    td.textContent = v === undefined || v === null ? '' : String(v);
                     row.appendChild(td);
                 });
                 tablaTriplos.appendChild(row);
             });
         }
-        return entradas.length;
+        return { dict, total: filas.length };
     }
 
-    // ── Evento Run ────────────────────────────────────────────────────────────
+    // Llena la tabla visual de la pestaña Ensamblador y devuelve el conteo
+    function llenarTablaEnsamblador(textoASM) {
+        tablaEnsamblador.innerHTML = '';
+
+        if (!textoASM || textoASM.trim() === '') {
+            tablaEnsamblador.innerHTML =
+                '<tr><td colspan="3" class="empty-state">No se generó código ensamblador</td></tr>';
+            return 0;
+        }
+
+        const lineas = textoASM.split('\n');
+        let count = 0;
+
+        lineas.forEach(linea => {
+            // Omitir líneas del encabezado/pie del .asm (comentarios de banner)
+            if (linea.startsWith('; ===')) return;
+            if (linea === '') return;
+
+            const row = document.createElement('tr');
+
+            // Es etiqueta sola (ETn:)
+            if (/^ET\d+:$/.test(linea.trim())) {
+                row.classList.add('asm-label-row');
+                row.innerHTML = `<td class="asm-label">${linea.trim()}</td><td></td><td></td>`;
+            } else {
+                // Separar instrucción de la nota (todo lo que sigue a ";")
+                let instrParte = linea;
+                let notaParte  = '';
+                const semiIdx  = linea.indexOf(';');
+                if (semiIdx !== -1 && !linea.trimStart().startsWith(';')) {
+                    instrParte = linea.slice(0, semiIdx).trimEnd();
+                    notaParte  = linea.slice(semiIdx + 1).trim();
+                } else if (linea.trimStart().startsWith(';')) {
+                    // Es un comentario puro
+                    instrParte = '';
+                    notaParte  = linea.trim().slice(1).trim();
+                }
+
+                if (instrParte.trim() !== '') {
+                    count++;
+                    row.innerHTML = `
+                        <td class="asm-label"></td>
+                        <td class="asm-instr">${_esc(instrParte.trim())}</td>
+                        <td class="asm-nota">${_esc(notaParte)}</td>`;
+                } else {
+                    return; // línea de comentario puro → no agregar fila
+                }
+            }
+            tablaEnsamblador.appendChild(row);
+        });
+
+        return count;
+    }
+
+    function _esc(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // ── EVENTO RUN ────────────────────────────────────────────────────────────
     runBtn.addEventListener('click', function () {
         const codigo = codeInput.value.trim();
-
         if (!codigo) {
             status.textContent = 'No hay código para compilar';
             status.style.color = 'var(--text-secondary)';
@@ -218,42 +240,41 @@ document.addEventListener('DOMContentLoaded', function () {
         output.innerHTML = '';
 
         try {
-            // ── PASO 1: Optimización (siempre primero) ────────────────────────
+            // ── PASO 1: Optimización ──────────────────────────────────────────
             const codigoOpt = optimizarCodigo(codeInput.value);
 
-            // Mostrar código optimizado en la pestaña
+            // Mostrar en pestaña Optimización
             if (!codigoOpt || codigoOpt.trim() === '') {
                 codigoOptimizado.innerHTML = '<div class="opt-line empty">No hay asignaciones optimizables</div>';
             } else {
                 codigoOptimizado.innerHTML = '';
-                const lineasOriginales = codeInput.value.split('\n');
-                const lineasOpt = codigoOpt.split('\n');
-                lineasOpt.forEach((linea, index) => {
-                    const originalLinea = lineasOriginales[index] || '';
-                    const esOptimizado = linea.replace(/\s+/g, '') !== originalLinea.replace(/\s+/g, '');
-                    const div = document.createElement('div');
-                    div.className = 'opt-line' + (esOptimizado ? ' optimized' : '');
-                    if (esOptimizado) div.title = 'Línea optimizada';
-                    div.dataset.line = index + 1;
-                    div.textContent = linea === '' ? ' ' : linea;
+                const lineasOrig = codeInput.value.split('\n');
+                const lineasOpt  = codigoOpt.split('\n');
+                lineasOpt.forEach((linea, idx) => {
+                    const orig = lineasOrig[idx] || '';
+                    const opt  = linea.replace(/\s+/g,'') !== orig.replace(/\s+/g,'');
+                    const div  = document.createElement('div');
+                    div.className   = 'opt-line' + (opt ? ' optimized' : '');
+                    if (opt) div.title = 'Línea optimizada';
+                    div.dataset.line = idx + 1;
+                    div.textContent  = linea === '' ? ' ' : linea;
                     div.addEventListener('click', function () {
-                        const lineNum = parseInt(this.dataset.line);
+                        const ln = parseInt(this.dataset.line);
                         highlightOptimizedLine(this);
-                        highlightLineNumber(lineNum);
-                        const range = getCharacterRangeOfLine(codeInput.value, lineNum);
+                        highlightLineNumber(ln);
+                        const range = getCharacterRangeOfLine(codeInput.value, ln);
                         codeInput.focus();
                         codeInput.setSelectionRange(range.start, range.end);
-                        const lineHeight = 14 * 1.8;
-                        const totalTextHeight = codeInput.value.split('\n').length * lineHeight;
-                        if (totalTextHeight <= codeInput.clientHeight) {
+                        const lh   = 14 * 1.8;
+                        const tot  = codeInput.value.split('\n').length * lh;
+                        if (tot <= codeInput.clientHeight) {
                             codeInput.scrollTop = 0;
                         } else {
-                            const lineTop = (lineNum - 1) * lineHeight;
-                            const viewHeight = codeInput.clientHeight;
-                            const currentScroll = codeInput.scrollTop;
-                            if (lineTop < currentScroll || lineTop > (currentScroll + viewHeight - lineHeight)) {
-                                codeInput.scrollTop = Math.max(0, lineTop - (viewHeight / 2));
-                            }
+                            const top = (ln - 1) * lh;
+                            const vh  = codeInput.clientHeight;
+                            const cs  = codeInput.scrollTop;
+                            if (top < cs || top > cs + vh - lh)
+                                codeInput.scrollTop = Math.max(0, top - vh / 2);
                         }
                         lineNumbers.scrollTop = codeInput.scrollTop;
                     });
@@ -261,96 +282,104 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
 
-            // ── PASO 2: Usar código optimizado para todas las tablas ──────────
-            // Si hubo optimización, las tablas reflejan el código optimizado.
-            // Aunque haya errores semánticos el proceso continúa.
-            const codigoParaProcesar = (codigoOpt && codigoOpt.trim()) ? codigoOpt : codigo;
+            // ── PASO 2: El código a procesar siempre es el optimizado ─────────
+            // Aunque haya errores semánticos, se continúa con todo el proceso
+            const codigoProcesar = (codigoOpt && codigoOpt.trim()) ? codigoOpt : codigo;
 
             // Tabla de símbolos
-            const lexemaDict = generarTablaSimbolos(codigoParaProcesar);
-            const simbolos = llenarTablaSimbolos(lexemaDict);
+            const lexemaDict = generarTablaSimbolos(codigoProcesar);
+            const simbolos   = llenarTablaSimbolos(lexemaDict);
 
-            // Tabla de errores (continúa aunque haya errores semánticos)
-            const errores = generarTablaErrores(codigoParaProcesar, lexemaDict);
+            // Tabla de errores (no detiene el proceso)
+            const errores = generarTablaErrores(codigoProcesar, lexemaDict);
             llenarTablaErrores(errores);
 
             // Tabla de triplos
-            const totalTriplos = llenarTablaTriplos(codigoParaProcesar);
+            const { dict: dictTriplos, total: totalTriplos } = llenarTablaTriplos(codigoProcesar);
 
-            // ── PASO 3: Consola ───────────────────────────────────────────────
+            // ── PASO 3: GENERAR CÓDIGO ENSAMBLADOR ────────────────────────────
+            // Se ejecuta SIEMPRE, independientemente de errores semánticos
+            const textoASM = compilarAEnsamblador(dictTriplos);
+            _ultimoASM     = textoASM;
+
+            // Llenar tabla visual (pestaña Ensamblador)
+            const totalInstr = llenarTablaEnsamblador(textoASM);
+
+            // ── PASO 4: DESCARGAR ARCHIVO .ASM AUTOMÁTICAMENTE ────────────────
+            if (textoASM && textoASM.trim() !== '') {
+                descargarASM(textoASM);
+            }
+
+            // ── PASO 5: Consola ───────────────────────────────────────────────
             output.innerHTML = `
-                <div class="output-line" style="color: var(--accent); font-weight: bold;">
+                <div class="output-line" style="color:var(--accent);font-weight:bold;">
                     > ════════════════════════════════════════
                 </div>
                 <div class="output-line">
                     > COMPILACIÓN COMPLETADA
                 </div>
-                <div class="output-line" style="color: var(--accent); font-weight: bold;">
+                <div class="output-line" style="color:var(--accent);font-weight:bold;">
                     > ════════════════════════════════════════
                 </div>
                 <div class="output-line">
                     > Símbolos encontrados: ${simbolos.length}
                 </div>
-                <div class="output-line" style="color: ${errores.length > 0 ? '#d32f2f' : 'var(--accent)'}">
+                <div class="output-line" style="color:${errores.length > 0 ? '#d32f2f' : 'var(--accent)'}">
                     > Errores detectados: ${errores.length}
                 </div>
                 <div class="output-line">
                     > Triplos generados: ${totalTriplos}
                 </div>
-                <div class="output-line">
-                    > Optimización: código procesado (ver pestaña Optimización)
+                <div class="output-line" style="color:var(--accent)">
+                    > Instrucciones ensamblador: ${totalInstr}
                 </div>
-                <div class="output-line" style="color: var(--accent); font-weight: bold;">
+                <div class="output-line" style="color:var(--accent)">
+                    > ✓ codigo_ensamblador.csv descargado
+                </div>
+                <div class="output-line" style="color:var(--accent);font-weight:bold;">
                     > ════════════════════════════════════════
                 </div>
-                <div class="output-line" style="margin-top: 1rem;">
+                <div class="output-line" style="margin-top:1rem">
                     ${errores.length === 0
-                    ? '> ✓ Código compilado exitosamente'
-                    : `> ✗ Se encontraron ${errores.length} error(es) - Ver pestaña Errores`
-                }
+                        ? '> ✓ Código compilado exitosamente'
+                        : `> ✗ ${errores.length} error(es) semántico(s) — ensamblador generado de todas formas`
+                    }
                 </div>
             `;
 
-            if (errores.length === 0) {
-                status.textContent = '✓ Compiled successfully';
-                status.style.color = 'var(--accent)';
-            } else {
-                status.textContent = `✗ ${errores.length} error(s) found`;
-                status.style.color = '#d32f2f';
-            }
+            status.textContent = errores.length === 0
+                ? '✓ Compiled successfully — .csv descargado'
+                : `✗ ${errores.length} error(s) — .csv descargado de todas formas`;
+            status.style.color = errores.length === 0 ? 'var(--accent)' : '#d32f2f';
 
-        } catch (error) {
+        } catch (err) {
             output.innerHTML = `
-                <div class="output-line" style="color: #d32f2f;">
+                <div class="output-line" style="color:#d32f2f;">
                     > ERROR DE COMPILACIÓN
                 </div>
                 <div class="output-line">
-                    > ${error.message}
+                    > ${err.message}
                 </div>
             `;
             status.textContent = '✗ Compilation failed';
             status.style.color = '#d32f2f';
-            console.error(error);
+            console.error(err);
         }
     });
 
-    clearBtn.addEventListener('click', function () {
-        codeInput.value = '';
-        codeInput.focus();
-    });
+    // ── Clear ────────────────────────────────────────────────────────────────
+    clearBtn.addEventListener('click', () => { codeInput.value = ''; codeInput.focus(); });
 
-    exportBtn.addEventListener('click', function () {
-        const tabActiva = document.querySelector('.tab-btn.active').getAttribute('data-tab');
-        if (tabActiva === 'simbolos') {
-            exportarTablaSimbolosCSV();
-        } else if (tabActiva === 'errores') {
-            exportarTablaErroresCSV();
-        } else if (tabActiva === 'triplos') {
-            exportarTablaTriplosCSV();
-        } else if (tabActiva === 'optimizacion') {
-            exportarCodigoOptimizado();
-        } else {
-            descargarArchivo('console.txt', output.innerText);
+    // ── Export ───────────────────────────────────────────────────────────────
+    exportBtn.addEventListener('click', () => {
+        const tab = document.querySelector('.tab-btn.active').getAttribute('data-tab');
+        if (tab === 'simbolos')     exportarTablaSimbolosCSV();
+        else if (tab === 'errores')      exportarTablaErroresCSV();
+        else if (tab === 'triplos')      exportarTablaTriplosCSV();
+        else if (tab === 'optimizacion') exportarCodigoOptimizado();
+        else if (tab === 'ensamblador')  exportarEnsambladorManual();
+        else {
+            _descargar('console.txt', output.innerText);
             status.textContent = 'Console exported';
             status.style.color = 'var(--accent)';
         }
@@ -358,88 +387,86 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function exportarTablaSimbolosCSV() {
         const filas = tablaSimbolos.querySelectorAll('tr');
-        if (filas.length === 0 || filas[0].querySelector('.empty-state')) {
-            status.textContent = 'No hay símbolos para exportar';
-            status.style.color = 'var(--text-secondary)';
-            return;
-        }
+        if (!filas.length || filas[0].querySelector('.empty-state')) return _noHay('símbolos');
         let csv = 'Lexema,Tipo de dato\n';
-        filas.forEach(fila => {
-            const celdas = fila.querySelectorAll('td');
-            if (celdas.length === 2) csv += `"${celdas[0].textContent}","${celdas[1].textContent}"\n`;
+        filas.forEach(r => {
+            const c = r.querySelectorAll('td');
+            if (c.length === 2) csv += `"${c[0].textContent}","${c[1].textContent}"\n`;
         });
-        descargarArchivo('tabla_simbolos.csv', csv);
-        status.textContent = '✓ Tabla de símbolos exportada';
-        status.style.color = 'var(--accent)';
+        _descargar('tabla_simbolos.csv', csv);
+        status.textContent = '✓ Tabla de símbolos exportada'; status.style.color = 'var(--accent)';
     }
 
     function exportarTablaErroresCSV() {
         const filas = tablaErrores.querySelectorAll('tr');
-        if (filas.length === 0 || filas[0].querySelector('.empty-state')) {
-            status.textContent = 'No hay errores para exportar';
-            status.style.color = 'var(--text-secondary)';
-            return;
-        }
+        if (!filas.length || filas[0].querySelector('.empty-state')) return _noHay('errores');
         let csv = 'Token,Lexema,Renglón,Descripción\n';
-        filas.forEach(fila => {
-            const celdas = fila.querySelectorAll('td');
-            if (celdas.length === 4) csv += `"${celdas[0].textContent}","${celdas[1].textContent}","${celdas[2].textContent}","${celdas[3].textContent}"\n`;
+        filas.forEach(r => {
+            const c = r.querySelectorAll('td');
+            if (c.length === 4) csv += `"${c[0].textContent}","${c[1].textContent}","${c[2].textContent}","${c[3].textContent}"\n`;
         });
-        descargarArchivo('tabla_errores.csv', csv);
-        status.textContent = '✓ Tabla de errores exportada';
-        status.style.color = 'var(--accent)';
-    }
-
-    function exportarCodigoOptimizado() {
-        const divs = codigoOptimizado.querySelectorAll('.opt-line');
-        let texto = divs.length > 0
-            ? Array.from(divs).map(d => d.textContent).join('\n')
-            : codigoOptimizado.textContent;
-        if (!texto || texto === 'Ejecuta Run para ver el código optimizado' || texto === 'No hay asignaciones optimizables') {
-            status.textContent = 'No hay código optimizado para exportar';
-            status.style.color = 'var(--text-secondary)';
-            return;
-        }
-        descargarArchivo('codigo_optimizado.txt', texto, 'text/plain;charset=utf-8;');
-        status.textContent = '✓ Código optimizado exportado';
-        status.style.color = 'var(--accent)';
+        _descargar('tabla_errores.csv', csv);
+        status.textContent = '✓ Tabla de errores exportada'; status.style.color = 'var(--accent)';
     }
 
     function exportarTablaTriplosCSV() {
         const filas = tablaTriplos.querySelectorAll('tr');
-        if (filas.length === 0 || filas[0].querySelector('.empty-state')) {
-            status.textContent = 'No hay triplos para exportar';
-            status.style.color = 'var(--text-secondary)';
-            return;
-        }
-        let csv = 'No. Línea,Operador,Dato Objeto,Dato Fuente\n';
-        filas.forEach(function (fila) {
-            const celdas = fila.querySelectorAll('td');
-            if (celdas.length === 4) csv += '"' + celdas[0].textContent + '","' + celdas[1].textContent + '","' + celdas[2].textContent + '","' + celdas[3].textContent + '"\n';
+        if (!filas.length || filas[0].querySelector('.empty-state')) return _noHay('triplos');
+        let csv = 'No. Línea,Dato Objeto,Dato Fuente,Operador\n';
+        filas.forEach(r => {
+            const c = r.querySelectorAll('td');
+            if (c.length === 4) csv += `"${c[0].textContent}","${c[1].textContent}","${c[2].textContent}","${c[3].textContent}"\n`;
         });
-        descargarArchivo('tabla_triplos.csv', csv);
-        status.textContent = '✓ Tabla de triplos exportada';
-        status.style.color = 'var(--accent)';
+        _descargar('tabla_triplos.csv', csv);
+        status.textContent = '✓ Tabla de triplos exportada'; status.style.color = 'var(--accent)';
     }
 
-    function descargarArchivo(nombreArchivo, contenido, mimeType) {
-        const blob = new Blob([contenido], { type: mimeType || 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = nombreArchivo;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    function exportarCodigoOptimizado() {
+        const divs = codigoOptimizado.querySelectorAll('.opt-line');
+        const txt  = divs.length > 0
+            ? Array.from(divs).map(d => d.textContent).join('\n')
+            : codigoOptimizado.textContent;
+        if (!txt || txt === 'Ejecuta Run para ver el código optimizado') return _noHay('código optimizado');
+        _descargar('codigo_optimizado.txt', txt, 'text/plain;charset=utf-8;');
+        status.textContent = '✓ Código optimizado exportado'; status.style.color = 'var(--accent)';
     }
 
-    copyBtn.addEventListener('click', function () {
-        const tabActiva = document.querySelector('.tab-btn.active').getAttribute('data-tab');
-        let text = output.innerText;
-        if (tabActiva === 'optimizacion') {
+    // Re-descarga el .asm ya generado (por si el usuario lo necesita de nuevo)
+    function exportarEnsambladorManual() {
+        if (!_ultimoASM || _ultimoASM.trim() === '') return _noHay('código ensamblador');
+        descargarASM(_ultimoASM);
+        status.textContent = '✓ codigo_ensamblador.csv descargado'; status.style.color = 'var(--accent)';
+    }
+
+    function _noHay(cosa) {
+        status.textContent = `No hay ${cosa} para exportar`; status.style.color = 'var(--text-secondary)';
+    }
+
+    function _descargar(nombre, contenido, mime) {
+        const blob = new Blob([contenido], { type: mime || 'text/csv;charset=utf-8;' });
+        const a    = document.createElement('a');
+        a.href     = URL.createObjectURL(blob);
+        a.download = nombre;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
+    // ── Copy ─────────────────────────────────────────────────────────────────
+    copyBtn.addEventListener('click', () => {
+        const tab = document.querySelector('.tab-btn.active').getAttribute('data-tab');
+        let text  = output.innerText;
+
+        if (tab === 'optimizacion') {
             const divs = codigoOptimizado.querySelectorAll('.opt-line');
-            text = divs.length > 0 ? Array.from(divs).map(d => d.textContent).join('\n') : codigoOptimizado.textContent;
+            text = divs.length > 0
+                ? Array.from(divs).map(d => d.textContent).join('\n')
+                : codigoOptimizado.textContent;
+        } else if (tab === 'ensamblador') {
+            text = _ultimoASM || '';
         }
+
         navigator.clipboard.writeText(text).then(() => {
             status.textContent = 'Copied to clipboard';
             status.style.color = 'var(--accent)';
@@ -447,21 +474,22 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    function getCharacterRangeOfLine(text, lineNumber) {
+    // ── Helpers de editor ────────────────────────────────────────────────────
+    function getCharacterRangeOfLine(text, lineNum) {
         const lines = text.split('\n');
         let start = 0;
-        for (let i = 0; i < lineNumber - 1; i++) start += lines[i].length + 1;
-        return { start, end: start + lines[lineNumber - 1].length };
+        for (let i = 0; i < lineNum - 1; i++) start += lines[i].length + 1;
+        return { start, end: start + lines[lineNum - 1].length };
     }
 
-    function highlightOptimizedLine(clickedDiv) {
-        codigoOptimizado.querySelectorAll('.opt-line').forEach(div => div.classList.remove('active-line'));
-        clickedDiv.classList.add('active-line');
+    function highlightOptimizedLine(el) {
+        codigoOptimizado.querySelectorAll('.opt-line').forEach(d => d.classList.remove('active-line'));
+        el.classList.add('active-line');
     }
 
-    function highlightLineNumber(lineNum) {
-        lineNumbers.querySelectorAll('span').forEach((span, index) => {
-            span.classList.toggle('active-line', index === lineNum - 1);
+    function highlightLineNumber(ln) {
+        lineNumbers.querySelectorAll('span').forEach((s, i) => {
+            s.classList.toggle('active-line', i === ln - 1);
         });
     }
 });

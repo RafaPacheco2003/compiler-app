@@ -1107,3 +1107,112 @@ footer::after {
 .course-tag {
     animation: stamp 0.5s ease-out;
 }
+/* ══════════════════════════════════════════════════════════════════
+   Tabla Ensamblador — estilos vintage coherentes con el resto
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Anchos de columnas */
+.asm-table .asm-col-label { width: 90px;  }
+.asm-table .asm-col-instr { width: 220px; }
+.asm-table .asm-col-nota  { width: auto;  }
+
+/* Celda de etiqueta (ET5:) */
+td.asm-label {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+/* Fila que contiene sólo la etiqueta */
+tr.asm-label-row td {
+    padding-top: 0.6rem;
+    padding-bottom: 0.1rem;
+    border-bottom: none;
+    background: transparent;
+}
+tr.asm-label-row td.asm-label {
+    font-size: 0.82rem;
+}
+
+/* Instrucción ensamblador */
+td.asm-instr {
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    padding-left: 1.4rem;
+}
+
+/* Resaltar mnemónico (primera palabra) via CSS trick */
+td.asm-instr::first-line {
+    color: var(--text-primary);
+}
+
+/* Nota / comentario */
+td.asm-nota {
+    font-family: 'Courier New', monospace;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    font-style: italic;
+    padding-left: 1rem;
+}
+
+/* Hover sobre filas de instrucción */
+.asm-table tbody tr:not(.asm-label-row):hover td {
+    background: var(--bg-hover);
+}
+
+/* Separador visual cada vez que hay una etiqueta */
+tr.asm-label-row + tr td {
+    border-top: 1px dashed var(--border);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Pestaña Ensamblador
+   ══════════════════════════════════════════════════════════════ */
+.asm-table .asm-col-label { width: 80px;  }
+.asm-table .asm-col-instr { width: 200px; }
+.asm-table .asm-col-nota  { width: auto;  }
+
+td.asm-label {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+tr.asm-label-row td {
+    padding-top: 0.55rem;
+    padding-bottom: 0.1rem;
+    border-bottom: none;
+    background: transparent;
+}
+
+td.asm-instr {
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    padding-left: 1.2rem;
+}
+
+td.asm-nota {
+    font-family: 'Courier New', monospace;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    font-style: italic;
+    padding-left: 0.8rem;
+}
+
+.asm-table tbody tr:not(.asm-label-row):hover td {
+    background: var(--bg-hover);
+}
+
+tr.asm-label-row + tr td {
+    border-top: 1px dashed var(--border);
+}

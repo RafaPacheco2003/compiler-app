@@ -165,58 +165,52 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Llena la tabla visual de la pestaña Ensamblador y devuelve el conteo
-    function llenarTablaEnsamblador(textoASM) {
-        tablaEnsamblador.innerHTML = '';
+    function llenarTablaEnsamblador(textoCSV) {
+    tablaEnsamblador.innerHTML = '';
 
-        if (!textoASM || textoASM.trim() === '') {
-            tablaEnsamblador.innerHTML =
-                '<tr><td colspan="3" class="empty-state">No se generó código ensamblador</td></tr>';
-            return 0;
+    if (!textoCSV || textoCSV.trim() === '') {
+        tablaEnsamblador.innerHTML =
+            '<tr><td colspan="3" class="empty-state">No se generó código ensamblador</td></tr>';
+        return 0;
+    }
+
+    // Parsear CSV: separar por líneas, saltar encabezado
+    const lineas = textoCSV.split('\n');
+    let count = 0;
+
+    lineas.forEach((linea, idx) => {
+        if (idx === 0) return; // saltar encabezado "Etiqueta,Instruccion,Nota"
+        if (linea.trim() === '') return;
+
+        // Parsear las 3 columnas CSV (cada campo entre comillas dobles)
+        const match = linea.match(/^"(.*?)","(.*?)","(.*?)"$/s);
+        if (!match) return;
+
+        const etqVal   = match[1].replace(/""/g, '"');
+        const instrVal = match[2].replace(/""/g, '"');
+        const notaVal  = match[3].replace(/""/g, '"');
+
+        const row = document.createElement('tr');
+
+        if (etqVal && instrVal === '' && notaVal === '') {
+            // Fila de etiqueta pura (ET5:)
+            row.classList.add('asm-label-row');
+            row.innerHTML = `<td class="asm-label">${_esc(etqVal)}</td><td></td><td></td>`;
+        } else if (instrVal.trim() !== '') {
+            count++;
+            row.innerHTML = `
+                <td class="asm-label">${_esc(etqVal)}</td>
+                <td class="asm-instr">${_esc(instrVal)}</td>
+                <td class="asm-nota">${_esc(notaVal)}</td>`;
+        } else {
+            return; // fila vacía
         }
 
-        const lineas = textoASM.split('\n');
-        let count = 0;
+        tablaEnsamblador.appendChild(row);
+    });
 
-        lineas.forEach(linea => {
-            // Omitir líneas del encabezado/pie del .asm (comentarios de banner)
-            if (linea.startsWith('; ===')) return;
-            if (linea === '') return;
-
-            const row = document.createElement('tr');
-
-            // Es etiqueta sola (ETn:)
-            if (/^ET\d+:$/.test(linea.trim())) {
-                row.classList.add('asm-label-row');
-                row.innerHTML = `<td class="asm-label">${linea.trim()}</td><td></td><td></td>`;
-            } else {
-                // Separar instrucción de la nota (todo lo que sigue a ";")
-                let instrParte = linea;
-                let notaParte  = '';
-                const semiIdx  = linea.indexOf(';');
-                if (semiIdx !== -1 && !linea.trimStart().startsWith(';')) {
-                    instrParte = linea.slice(0, semiIdx).trimEnd();
-                    notaParte  = linea.slice(semiIdx + 1).trim();
-                } else if (linea.trimStart().startsWith(';')) {
-                    // Es un comentario puro
-                    instrParte = '';
-                    notaParte  = linea.trim().slice(1).trim();
-                }
-
-                if (instrParte.trim() !== '') {
-                    count++;
-                    row.innerHTML = `
-                        <td class="asm-label"></td>
-                        <td class="asm-instr">${_esc(instrParte.trim())}</td>
-                        <td class="asm-nota">${_esc(notaParte)}</td>`;
-                } else {
-                    return; // línea de comentario puro → no agregar fila
-                }
-            }
-            tablaEnsamblador.appendChild(row);
-        });
-
-        return count;
-    }
+    return count;
+}
 
     function _esc(s) {
         return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
